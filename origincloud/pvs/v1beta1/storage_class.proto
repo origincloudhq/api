@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package origincloud.pvs.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+// The catalog of storage classes: every tier the platform publishes, each
+// saying whether it can be selected right now. Not scoped to an
+// organisation or a project; no permission is needed.
+service StorageClassService {
+  option (google.api.default_host) = "pvs.api.origincloud.eu";
+
+  // Returns a storage class.
+  rpc GetStorageClass(GetStorageClassRequest) returns (StorageClass) {
+    option (google.api.http) = {get: "/v1beta1/{name=storageClasses/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists every storage class, including those not yet on sale: check
+  // `available` before selecting one.
+  rpc ListStorageClasses(ListStorageClassesRequest) returns (ListStorageClassesResponse) {
+    option (google.api.http) = {get: "/v1beta1/storageClasses"};
+  }
+}
+
+// A storage tier a volume is created in.
+message StorageClass {
+  option (google.api.resource) = {
+    type: "pvs.api.origincloud.eu/StorageClass"
+    pattern: "storageClasses/{storage_class}"
+    plural: "storageClasses"
+    singular: "storageClass"
+  };
+
+  // The media a class is backed by.
+  enum Media {
+    // Not set.
+    MEDIA_UNSPECIFIED = 0;
+    // Solid-state storage.
+    SSD = 1;
+    // Rotational (hard-disk) storage.
+    HDD = 2;
+  }
+
+  // The class's resource name, `storageClasses/gp1`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The name the console shows.
+  string display_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The media the class is backed by.
+  Media media = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether a volume created without a storage class is created in this
+  // one.
+  bool default_class = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether the class can be selected right now. A class that is listed
+  // but not available is a published tier not yet on sale.
+  bool available = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The I/O operations per second a volume of the class is limited to; 0
+  // for a class not on sale.
+  int32 baseline_iops = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The MiB per second a volume of the class is limited to; 0 for a class
+  // not on sale.
+  int32 baseline_throughput_mibps = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetStorageClass.
+message GetStorageClassRequest {
+  // The class to return, `storageClasses/{storage_class}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "pvs.api.origincloud.eu/StorageClass"
+  ];
+}
+
+// The request for ListStorageClasses. The catalog is small and bounded by
+// the platform, so it comes in one page.
+//
+// (-- api-linter: core::0158::request-page-size-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few classes. --)
+// (-- api-linter: core::0158::request-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few classes. --)
+message ListStorageClassesRequest {}
+
+// The response for ListStorageClasses.
+//
+// (-- api-linter: core::0158::response-next-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few classes. --)
+message ListStorageClassesResponse {
+  // Every storage class, in catalog order.
+  repeated StorageClass storage_classes = 1;
+}

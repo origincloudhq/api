@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package origincloud.longrunning.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// The long-running operations of a service: what its creates, updates and
+// deletes answer with, until their resource settles. Every service serves
+// this at its own host, for the operations its own methods return.
+//
+// An operation is done when its resource reaches the state its method
+// promises, or failed when it can't get there; that outcome never changes
+// afterwards, whatever later happens to the resource. It can be read for a
+// day after it is done.
+service OperationService {
+  // Returns an operation as it is now.
+  //
+  // (-- api-linter: core::0151::operation-info=disabled
+  //     aip.dev/not-precedent: it returns an operation, it doesn't start one. --)
+  rpc GetOperation(GetOperationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/zones/*/operations/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Waits until an operation is done or `timeout` has passed, whichever
+  // comes first, and returns it as it is then.
+  //
+  // (-- api-linter: core::0151::operation-info=disabled
+  //     aip.dev/not-precedent: it returns an operation, it doesn't start one. --)
+  // (-- api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: AIP-151's WaitOperation answers with the operation. --)
+  rpc WaitOperation(WaitOperationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=projects/*/zones/*/operations/*}:wait"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name,timeout";
+  }
+}
+
+// The request for GetOperation.
+message GetOperationRequest {
+  // The operation to return, `projects/{project}/zones/{zone}/operations/{operation}`,
+  // exactly as a method returned it.
+  //
+  // (-- api-linter: core::0131::request-name-reference=disabled
+  //     aip.dev/not-precedent: google.longrunning.Operation declares no resource type. --)
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for WaitOperation.
+message WaitOperationRequest {
+  // The operation to wait for, exactly as a method returned it.
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The longest to wait, at most a minute; a minute when not set.
+  google.protobuf.Duration timeout = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// What an operation is about.
+message OperationMetadata {
+  // The resource the operation acts on.
+  string target = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What it does, as the method that started it names it: for example
+  // `create`, `update` or `delete`.
+  string verb = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When it was accepted.
+  google.protobuf.Timestamp create_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When it finished; empty while it hasn't.
+  google.protobuf.Timestamp end_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}

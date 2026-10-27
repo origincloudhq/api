@@ -1,0 +1,29 @@
+# Origin Cloud's public API specs: Google's API Improvement Proposals, with
+# the deviations noted below. This file is published with the packages, so it
+# names nothing outside them.
+version: v2
+modules:
+  - path: .
+deps:
+  - buf.build/googleapis/googleapis
+lint:
+  use:
+    - STANDARD
+  except:
+    # AIP-126: values of an enum nested in its message carry no prefix.
+    - ENUM_VALUE_PREFIX
+    # AIP-131/133/135: standard methods return the resource or an
+    # Operation, not a per-method response message.
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_RESPONSE_STANDARD_NAME
+    # AIP-151: an operation's metadata type is named by a string in
+    # `operation_info`, which buf doesn't count as a use of its import,
+    # while api-linter requires the import (lro-metadata-reachable).
+    - IMPORT_USED
+breaking:
+  use:
+    # FILE, not WIRE_JSON: the SDKs are generated from these files, so a
+    # rename that keeps the JSON breaks their callers' code all the same.
+    - FILE
+  # A preview package (v1beta1, v1alpha1) may break; a stable one never.
+  ignore_unstable_packages: true
