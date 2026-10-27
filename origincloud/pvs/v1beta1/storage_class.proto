@@ -11,7 +11,7 @@ import "google/api/resource.proto";
 // saying whether it can be selected right now. Not scoped to an
 // organisation or a project; no permission is needed.
 service StorageClassService {
-  option (google.api.default_host) = "pvs.api.origincloud.eu";
+  option (google.api.default_host) = "pvs.origincloudapis.com";
 
   // Returns a storage class.
   rpc GetStorageClass(GetStorageClassRequest) returns (StorageClass) {
@@ -29,7 +29,7 @@ service StorageClassService {
 // A storage tier a volume is created in.
 message StorageClass {
   option (google.api.resource) = {
-    type: "pvs.api.origincloud.eu/StorageClass"
+    type: "pvs.origincloudapis.com/StorageClass"
     pattern: "storageClasses/{storage_class}"
     plural: "storageClasses"
     singular: "storageClass"
@@ -76,7 +76,7 @@ message GetStorageClassRequest {
   // The class to return, `storageClasses/{storage_class}`.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).type = "pvs.api.origincloud.eu/StorageClass"
+    (google.api.resource_reference).type = "pvs.origincloudapis.com/StorageClass"
   ];
 }
 

@@ -14,7 +14,7 @@ import "origincloud/longrunning/v1beta1/operations.proto";
 // Block storage volumes: durable disks in one zone that an instance attaches
 // to read and write.
 service VolumeService {
-  option (google.api.default_host) = "pvs.api.origincloud.eu";
+  option (google.api.default_host) = "pvs.origincloudapis.com";
 
   // Returns a volume.
   rpc GetVolume(GetVolumeRequest) returns (Volume) {
@@ -89,7 +89,7 @@ service VolumeService {
 // A block storage volume in one zone.
 message Volume {
   option (google.api.resource) = {
-    type: "pvs.api.origincloud.eu/Volume"
+    type: "pvs.origincloudapis.com/Volume"
     pattern: "projects/{project}/zones/{zone}/volumes/{volume}"
     plural: "volumes"
     singular: "volume"
@@ -143,7 +143,7 @@ message Volume {
   string storage_class = 4 [
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.field_behavior) = OPTIONAL,
-    (google.api.resource_reference).type = "pvs.api.origincloud.eu/StorageClass"
+    (google.api.resource_reference).type = "pvs.origincloudapis.com/StorageClass"
   ];
 
   // The snapshot the volume was created from, in the same project and
@@ -152,7 +152,7 @@ message Volume {
   string source_snapshot = 5 [
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.field_behavior) = OPTIONAL,
-    (google.api.resource_reference).type = "pvs.api.origincloud.eu/Snapshot"
+    (google.api.resource_reference).type = "pvs.origincloudapis.com/Snapshot"
   ];
 
   // Where the volume is in its lifecycle.
@@ -201,7 +201,7 @@ message GetVolumeRequest {
   // The volume to return.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).type = "pvs.api.origincloud.eu/Volume"
+    (google.api.resource_reference).type = "pvs.origincloudapis.com/Volume"
   ];
 }
 
@@ -210,7 +210,7 @@ message ListVolumesRequest {
   // The zone whose volumes to list, `projects/{project}/zones/{zone}`.
   string parent = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).child_type = "pvs.api.origincloud.eu/Volume"
+    (google.api.resource_reference).child_type = "pvs.origincloudapis.com/Volume"
   ];
 
   // The most volumes to return; the server clamps it, and 0 means its
@@ -235,7 +235,7 @@ message CreateVolumeRequest {
   // The zone to create the volume in, `projects/{project}/zones/{zone}`.
   string parent = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).child_type = "pvs.api.origincloud.eu/Volume"
+    (google.api.resource_reference).child_type = "pvs.origincloudapis.com/Volume"
   ];
 
   // The volume to create: its size, and optionally its storage class,
@@ -255,7 +255,7 @@ message ImportVolumeRequest {
   // The zone to create the volume in, `projects/{project}/zones/{zone}`.
   string parent = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).child_type = "pvs.api.origincloud.eu/Volume"
+    (google.api.resource_reference).child_type = "pvs.origincloudapis.com/Volume"
   ];
 
   // The volume to create: its size, which must hold the image, and
@@ -295,7 +295,7 @@ message DeleteVolumeRequest {
   // The volume to delete.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).type = "pvs.api.origincloud.eu/Volume"
+    (google.api.resource_reference).type = "pvs.origincloudapis.com/Volume"
   ];
 
   // A UUID; a repeat with the same id returns the first request's

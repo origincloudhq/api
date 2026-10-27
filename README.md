@@ -1,13 +1,13 @@
 # Origin Cloud API
 
 The protobuf definitions of Origin Cloud's public REST APIs. Each service's API
-is defined here first and served as REST/JSON at `{service}.api.origincloud.eu`.
+is defined here first and served as REST/JSON at `{service}.origincloudapis.com`.
 Origin Cloud's SDKs, Terraform provider, CLI and MCP server are generated from
 these files.
 
 | Package | Service | Hostname |
 |---|---|---|
-| `origincloud.pvs.v1beta1` | Persistent volumes: volumes, snapshots, storage classes | `pvs.api.origincloud.eu` |
+| `origincloud.pvs.v1beta1` | Persistent volumes: volumes, snapshots, storage classes | `pvs.origincloudapis.com` |
 | `origincloud.longrunning.v1beta1` | Operations: the state of an asynchronous change | the hostname of the service that started it |
 
 ## Design
