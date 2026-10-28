@@ -14,7 +14,7 @@ import "origincloud/longrunning/v1beta1/operations.proto";
 // Snapshots: point-in-time copies of a volume, in the volume's zone. A
 // protected, completed snapshot is the source of new volumes and images.
 service SnapshotService {
-  option (google.api.default_host) = "pvs.origincloudapis.com";
+  option (google.api.default_host) = "pvs.origincloudapis.eu";
 
   // Returns a snapshot.
   rpc GetSnapshot(GetSnapshotRequest) returns (Snapshot) {
@@ -95,7 +95,7 @@ service SnapshotService {
 // A point-in-time copy of a volume.
 message Snapshot {
   option (google.api.resource) = {
-    type: "pvs.origincloudapis.com/Snapshot"
+    type: "pvs.origincloudapis.eu/Snapshot"
     pattern: "projects/{project}/zones/{zone}/snapshots/{snapshot}"
     plural: "snapshots"
     singular: "snapshot"
@@ -146,7 +146,7 @@ message Snapshot {
   string source_volume = 3 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,
-    (google.api.resource_reference).type = "pvs.origincloudapis.com/Volume"
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/Volume"
   ];
 
   // The source volume's size in GiB when it was copied: the least a volume
@@ -180,7 +180,7 @@ message GetSnapshotRequest {
   // The snapshot to return.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).type = "pvs.origincloudapis.com/Snapshot"
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/Snapshot"
   ];
 }
 
@@ -189,7 +189,7 @@ message ListSnapshotsRequest {
   // The zone whose snapshots to list, `projects/{project}/zones/{zone}`.
   string parent = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).child_type = "pvs.origincloudapis.com/Snapshot"
+    (google.api.resource_reference).child_type = "pvs.origincloudapis.eu/Snapshot"
   ];
 
   // The most snapshots to return; the server clamps it, and 0 means its
@@ -214,7 +214,7 @@ message CreateSnapshotRequest {
   // The zone of the volume to copy, `projects/{project}/zones/{zone}`.
   string parent = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).child_type = "pvs.origincloudapis.com/Snapshot"
+    (google.api.resource_reference).child_type = "pvs.origincloudapis.eu/Snapshot"
   ];
 
   // The snapshot to take: its source volume, and optionally its tags.
@@ -243,7 +243,7 @@ message DeleteSnapshotRequest {
   // The snapshot to delete.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).type = "pvs.origincloudapis.com/Snapshot"
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/Snapshot"
   ];
 
   // A UUID; a repeat with the same id returns the first request's
@@ -259,7 +259,7 @@ message ProtectSnapshotRequest {
   // The snapshot to protect; it must be `COMPLETED`.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).type = "pvs.origincloudapis.com/Snapshot"
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/Snapshot"
   ];
 
   // A UUID; a repeat with the same id returns the first request's
@@ -276,7 +276,7 @@ message UnprotectSnapshotRequest {
   // it can then be deleted.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).type = "pvs.origincloudapis.com/Snapshot"
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/Snapshot"
   ];
 
   // A UUID; a repeat with the same id returns the first request's
