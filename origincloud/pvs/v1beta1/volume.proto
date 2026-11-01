@@ -23,7 +23,9 @@ service VolumeService {
   }
 
   // Lists the volumes in a zone, oldest first. Deleted volumes aren't
-  // listed.
+  // listed. For every zone's volumes, list the zones whose `services` name
+  // `pvs` with the location service (`location.origincloudapis.eu`), then
+  // each zone's volumes.
   rpc ListVolumes(ListVolumesRequest) returns (ListVolumesResponse) {
     option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*}/volumes"};
     option (google.api.method_signature) = "parent";

@@ -23,7 +23,9 @@ service SnapshotService {
   }
 
   // Lists the snapshots in a zone, oldest first. Deleted snapshots aren't
-  // listed.
+  // listed. For every zone's snapshots, list the zones whose `services` name
+  // `pvs` with the location service (`location.origincloudapis.eu`), then
+  // each zone's snapshots.
   rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse) {
     option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*}/snapshots"};
     option (google.api.method_signature) = "parent";
