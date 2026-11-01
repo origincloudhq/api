@@ -9,6 +9,7 @@ these files.
 |---|---|---|
 | `origincloud.pvs.v1beta1` | Persistent volumes: volumes, snapshots, storage classes | `pvs.origincloudapis.eu` |
 | `origincloud.longrunning.v1beta1` | Operations: the state of an asynchronous change | the hostname of the service that started it |
+| `origincloud.location.v1beta1` | Regions and zones, and the services each zone offers | `location.origincloudapis.eu` |
 
 ## Design
 

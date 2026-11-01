@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package origincloud.location.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+// The platform's regions and zones, and which services each zone offers. A
+// zonal list, such as a project's volumes, covers one zone: a client that
+// wants every zone lists the zones here first. The same for every caller:
+// any authenticated caller can read it, and no permission is needed.
+service LocationService {
+  option (google.api.default_host) = "location.origincloudapis.eu";
+
+  // Returns a region.
+  rpc GetRegion(GetRegionRequest) returns (Region) {
+    option (google.api.http) = {get: "/v1beta1/{name=regions/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists every region that has a zone, in catalog order.
+  rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse) {
+    option (google.api.http) = {get: "/v1beta1/regions"};
+  }
+
+  // Returns a zone.
+  rpc GetZone(GetZoneRequest) returns (Zone) {
+    option (google.api.http) = {get: "/v1beta1/{name=zones/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists every zone, in catalog order. A zone offers a service when its
+  // `services` names it: those are the zones a client lists that service's
+  // zonal resources in.
+  rpc ListZones(ListZonesRequest) returns (ListZonesResponse) {
+    option (google.api.http) = {get: "/v1beta1/zones"};
+  }
+}
+
+// A geographic area of the platform, made up of zones.
+message Region {
+  option (google.api.resource) = {
+    type: "location.origincloudapis.eu/Region"
+    pattern: "regions/{region}"
+    plural: "regions"
+    singular: "region"
+  };
+
+  // The region's resource name, `regions/eu-central1`. Its last segment is
+  // the region a regional host is named after, `{service}.{region}.origincloudapis.eu`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The name the console shows, such as `EU Central 1`.
+  string display_name = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The region's zones, `zones/{zone}`, in catalog order.
+  repeated string zones = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "location.origincloudapis.eu/Zone"
+  ];
+}
+
+// A part of a region whose failures are independent of its other zones'.
+// A zonal resource is in exactly one zone.
+message Zone {
+  option (google.api.resource) = {
+    type: "location.origincloudapis.eu/Zone"
+    pattern: "zones/{zone}"
+    plural: "zones"
+    singular: "zone"
+  };
+
+  // The zone's resource name, `zones/eu-central1-az1`. Its last segment is
+  // the zone in a zonal resource's name,
+  // `projects/{project}/zones/{zone}/volumes/{volume}`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The name the console shows, such as `EU Central 1, zone 1`.
+  string display_name = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The region the zone is in, `regions/{region}`.
+  string region = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "location.origincloudapis.eu/Region"
+  ];
+
+  // The services whose zonal resources the zone holds, by the name of their
+  // API, such as `pvs`: the host `{service}.origincloudapis.eu` serves them.
+  // Empty for a zone that holds none yet. A service is added here when its API
+  // is published.
+  repeated string services = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetRegion.
+message GetRegionRequest {
+  // The region to return, `regions/{region}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "location.origincloudapis.eu/Region"
+  ];
+}
+
+// The request for ListRegions. The platform has few regions, so they come
+// in one page.
+//
+// (-- api-linter: core::0158::request-page-size-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few regions. --)
+// (-- api-linter: core::0158::request-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few regions. --)
+message ListRegionsRequest {}
+
+// The response for ListRegions.
+//
+// (-- api-linter: core::0158::response-next-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few regions. --)
+message ListRegionsResponse {
+  // Every region that has a zone, in catalog order.
+  repeated Region regions = 1;
+}
+
+// The request for GetZone.
+message GetZoneRequest {
+  // The zone to return, `zones/{zone}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "location.origincloudapis.eu/Zone"
+  ];
+}
+
+// The request for ListZones. The platform has few zones, so they come in one
+// page.
+//
+// (-- api-linter: core::0158::request-page-size-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few zones. --)
+// (-- api-linter: core::0158::request-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few zones. --)
+message ListZonesRequest {}
+
+// The response for ListZones.
+//
+// (-- api-linter: core::0158::response-next-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few zones. --)
+message ListZonesResponse {
+  // Every zone, in catalog order.
+  repeated Zone zones = 1;
+}
