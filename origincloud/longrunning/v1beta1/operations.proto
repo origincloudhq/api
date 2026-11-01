@@ -28,7 +28,8 @@ service OperationService {
   }
 
   // Waits until an operation is done or `timeout` has passed, whichever
-  // comes first, and returns it as it is then.
+  // comes first, and returns it as it is then. It only reads, so a client
+  // may repeat it after a transport error.
   //
   // (-- api-linter: core::0151::operation-info=disabled
   //     aip.dev/not-precedent: it returns an operation, it doesn't start one. --)
@@ -40,6 +41,7 @@ service OperationService {
       body: "*"
     };
     option (google.api.method_signature) = "name,timeout";
+    option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
 
