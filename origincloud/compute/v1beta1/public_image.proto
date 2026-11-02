@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package origincloud.compute.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "origincloud/compute/v1beta1/image.proto";
+
+// The catalog of public images: the platform's images, in each zone, that
+// any project's instances can be launched from. Not scoped to an
+// organisation or a project; no permission is needed.
+service PublicImageService {
+  option (google.api.default_host) = "compute.origincloudapis.eu";
+
+  // Returns a public image.
+  rpc GetPublicImage(GetPublicImageRequest) returns (PublicImage) {
+    option (google.api.http) = {get: "/v1beta1/{name=zones/*/images/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the public images in a zone, oldest first.
+  rpc ListPublicImages(ListPublicImagesRequest) returns (ListPublicImagesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=zones/*}/images"};
+    option (google.api.method_signature) = "parent";
+  }
+}
+
+// One of the platform's images, in one zone.
+//
+// (-- api-linter: core::0123::resource-pattern-plural=disabled
+//     aip.dev/not-precedent: a public image is an image, named in the zone's images; its type only tells it from a project's own. --)
+// (-- api-linter: core::0123::resource-pattern-singular=disabled
+//     aip.dev/not-precedent: a public image is an image, named in the zone's images; its type only tells it from a project's own. --)
+message PublicImage {
+  option (google.api.resource) = {
+    type: "compute.origincloudapis.eu/PublicImage"
+    pattern: "zones/{zone}/images/{image}"
+    plural: "publicImages"
+    singular: "publicImage"
+  };
+
+  // The image's resource name, `zones/{zone}/images/{image}`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The image's URN, the identifier access policies and the audit log use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What the image holds.
+  string description = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The account an instance launched from the image logs in as, unless the
+  // launch names another.
+  string default_user = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The device name of the disk the image boots from.
+  string root_device = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The image's disks, each created for an instance launched from it.
+  repeated PublicImageBlockDevice block_devices = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The CPU architecture it boots on.
+  Image.Architecture architecture = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Its operating system family.
+  Image.Platform platform = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Where it is in its lifecycle.
+  Image.State state = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The family the image belongs to, `imageFamilies/{image_family}`; empty
+  // for an image of none.
+  string image_family = 10 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/ImageFamily"
+  ];
+
+  // Whether `image_family` launches this image now.
+  bool family_current = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A disk of a public image.
+message PublicImageBlockDevice {
+  // The device name the disk appears under on every instance launched from
+  // the image.
+  string device = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The disk's size in GiB.
+  int32 size_gib = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetPublicImage.
+message GetPublicImageRequest {
+  // The image to return, `zones/{zone}/images/{image}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/PublicImage"
+  ];
+}
+
+// The request for ListPublicImages.
+message ListPublicImagesRequest {
+  // The zone whose public images to list, `zones/{zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "compute.origincloudapis.eu/PublicImage"
+  ];
+
+  // The most images to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListPublicImages.
+message ListPublicImagesResponse {
+  // The images on this page.
+  repeated PublicImage public_images = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}

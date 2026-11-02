@@ -1,0 +1,231 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// ACL rules: what an ACL accepts or drops, each rule in its place in one
+// direction. A rule is immutable: it is created and deleted, never changed,
+// so to change one, delete it and create its replacement. A direction
+// holds one rule per `priority`, so a replacement at the same priority can
+// only be created once the old rule is deleted: between the two, neither
+// rule applies. A replacement at a free priority can be created first.
+service AclRuleService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns an ACL rule.
+  rpc GetAclRule(GetAclRuleRequest) returns (AclRule) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/regions/*/acls/*/rules/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists an ACL's rules of both directions, oldest first.
+  rpc ListAclRules(ListAclRulesRequest) returns (ListAclRulesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/regions/*/acls/*}/rules"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Adds a rule to an ACL. Refused with `FAILED_PRECONDITION` when a rule
+  // of the same direction has the same `priority`. An ACL holds at most 40
+  // rules by default, both directions together, as the quota sets. The
+  // operation is done once the change is recorded; the network applies it
+  // within seconds.
+  rpc CreateAclRule(CreateAclRuleRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/regions/*/acls/*}/rules"
+      body: "acl_rule"
+    };
+    option (google.api.method_signature) = "parent,acl_rule";
+    option (google.longrunning.operation_info) = {
+      response_type: "AclRule"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Removes a rule from its ACL. The operation is done once the change is
+  // recorded; the network applies it within seconds.
+  rpc DeleteAclRule(DeleteAclRuleRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/regions/*/acls/*/rules/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// An ACL rule: accepts or drops the traffic it matches in one direction.
+message AclRule {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/AclRule"
+    pattern: "projects/{project}/regions/{region}/acls/{acl}/rules/{rule}"
+    plural: "aclRules"
+    singular: "aclRule"
+  };
+
+  // Which traffic a rule applies to.
+  enum Direction {
+    // Not set.
+    DIRECTION_UNSPECIFIED = 0;
+    // Traffic entering the subnet.
+    INGRESS = 1;
+    // Traffic leaving the subnet.
+    EGRESS = 2;
+  }
+
+  // The traffic a rule matches.
+  enum Protocol {
+    // Not set.
+    PROTOCOL_UNSPECIFIED = 0;
+    // Every protocol; ports don't apply.
+    ALL = 1;
+    // TCP.
+    TCP = 2;
+    // UDP.
+    UDP = 3;
+    // ICMP to and from IPv4 ranges, ICMPv6 to and from IPv6 ranges, every
+    // type and code; ports don't apply.
+    ICMP = 4;
+  }
+
+  // What a rule does with the traffic it matches.
+  enum Action {
+    // Not set.
+    ACTION_UNSPECIFIED = 0;
+    // Let it through.
+    ACCEPT = 1;
+    // Drop it.
+    DROP = 2;
+  }
+
+  // The rule's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Which traffic the rule applies to.
+  Direction direction = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // The rule's place in its direction, from 1; lower comes first. No two
+  // rules of a direction share one.
+  int32 priority = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // The traffic the rule matches.
+  Protocol protocol = 4 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // The first port the rule matches, for `TCP` and `UDP`. Each set of
+  // ports has one spelling, and the rule reads back in it: `first_port` 0
+  // and `last_port` 0 match every port, a `last_port` of 0 the single port
+  // `first_port`, and a `first_port` below `last_port` the range between
+  // them. Any other spelling of a set is refused with `INVALID_ARGUMENT`
+  // naming the one to use: `first_port` 22 and `last_port` 22 is
+  // `first_port` 22 and `last_port` 0, and 0 or 1 to 65535 is 0 and 0.
+  int32 first_port = 5 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+
+  // The last port the rule matches, above `first_port`; 0 for the single
+  // port `first_port`, or with `first_port` 0 for every port.
+  int32 last_port = 6 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+
+  // The far side's range: where entering traffic comes from, or where
+  // leaving traffic goes to.
+  string cidr_block = 7 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // What the rule does with the traffic it matches.
+  Action action = 8 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+}
+
+// The request for GetAclRule.
+message GetAclRuleRequest {
+  // The rule to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/AclRule"
+  ];
+}
+
+// The request for ListAclRules.
+message ListAclRulesRequest {
+  // The ACL whose rules to list,
+  // `projects/{project}/regions/{region}/acls/{acl}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/AclRule"
+  ];
+
+  // The most rules to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListAclRules.
+message ListAclRulesResponse {
+  // The rules on this page.
+  repeated AclRule acl_rules = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateAclRule.
+message CreateAclRuleRequest {
+  // The ACL to add the rule to,
+  // `projects/{project}/regions/{region}/acls/{acl}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/AclRule"
+  ];
+
+  // The rule to add.
+  AclRule acl_rule = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of adding the rule again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteAclRule.
+message DeleteAclRuleRequest {
+  // The rule to remove.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/AclRule"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

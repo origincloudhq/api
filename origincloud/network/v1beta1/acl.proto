@@ -1,0 +1,210 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// ACLs: stateless filters at the edge of a subnet. An ACL holds rules
+// (`AclRuleService`), and applies to the subnets that an ACL association
+// names it for (`AclAssociationService`). Each packet entering or leaving
+// such a subnet meets the rules of its direction in `priority` order; the
+// first that matches accepts or drops it, and a packet no rule matches is
+// dropped.
+service AclService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns an ACL.
+  rpc GetAcl(GetAclRequest) returns (Acl) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/regions/*/acls/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the ACLs in a region, oldest first.
+  rpc ListAcls(ListAclsRequest) returns (ListAclsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/regions/*}/acls"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates an ACL in a VPC, with no rules: it drops everything until
+  // rules are added. The operation is done once the ACL is recorded.
+  rpc CreateAcl(CreateAclRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/regions/*}/acls"
+      body: "acl"
+    };
+    option (google.api.method_signature) = "parent,acl";
+    option (google.longrunning.operation_info) = {
+      response_type: "Acl"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Changes an ACL's tags. The operation is done once the change is
+  // recorded.
+  rpc UpdateAcl(UpdateAclRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{acl.name=projects/*/regions/*/acls/*}"
+      body: "acl"
+    };
+    option (google.api.method_signature) = "acl,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "Acl"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Deletes an ACL with its rules. Refused for an ACL the platform created
+  // with its VPC, which goes with the VPC, and while an ACL association
+  // names it. The operation is done once the change is recorded; the
+  // network applies it within seconds.
+  rpc DeleteAcl(DeleteAclRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/regions/*/acls/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// Stateless rules for the traffic in and out of the subnets associated with
+// the ACL.
+message Acl {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/Acl"
+    pattern: "projects/{project}/regions/{region}/acls/{acl}"
+    plural: "acls"
+    singular: "acl"
+  };
+
+  // The ACL's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The ACL's URN, the identifier access policies and the audit log use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The VPC the ACL belongs to, in the same project and region.
+  string vpc = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
+  ];
+
+  // Whether the platform created the ACL with the VPC. Only the project's
+  // default VPC has such resources. It can't be deleted, and goes with its
+  // VPC.
+  bool vpc_default = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the ACL was created.
+  google.protobuf.Timestamp create_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the ACL, such as `user:<id>` or
+  // `service_account:<id>`; empty for one the platform created.
+  string creator = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Labels of your own, at most 50. The `origin:name` tag is the name the
+  // console shows.
+  map<string, string> tags = 7 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for GetAcl.
+message GetAclRequest {
+  // The ACL to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Acl"
+  ];
+}
+
+// The request for ListAcls.
+message ListAclsRequest {
+  // The region whose ACLs to list, `projects/{project}/regions/{region}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/Acl"
+  ];
+
+  // The most ACLs to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the ACLs of this VPC, when set.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)
+  string vpc = 4 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
+  ];
+}
+
+// The response for ListAcls.
+message ListAclsResponse {
+  // The ACLs on this page.
+  repeated Acl acls = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateAcl.
+message CreateAclRequest {
+  // The region to create the ACL in, `projects/{project}/regions/{region}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/Acl"
+  ];
+
+  // The ACL to create: its VPC, and optionally its tags.
+  Acl acl = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of creating a second ACL.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateAcl.
+message UpdateAclRequest {
+  // The ACL, by its name, with the fields to change.
+  Acl acl = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `tags`, or `*`.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of changing the ACL again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteAcl.
+message DeleteAclRequest {
+  // The ACL to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Acl"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

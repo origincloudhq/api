@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// Routes: where a route table sends traffic to a destination outside the
+// VPC. A route is immutable: it is created and deleted, never changed, so to
+// change one, delete it and create its replacement. A table has at most one
+// route per destination, so the replacement can only be created once the old
+// route is deleted: between the two, the table has no route to that
+// destination.
+service RouteService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a route.
+  rpc GetRoute(GetRouteRequest) returns (Route) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/regions/*/routeTables/*/routes/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a route table's routes, oldest first. Its local routes aren't
+  // listed: they are the table's `local_routes`.
+  rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/regions/*/routeTables/*}/routes"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Adds a route to a route table. Refused with `FAILED_PRECONDITION` when
+  // the table has a route to the same destination. The operation is done
+  // once the change is recorded; the network applies it within seconds.
+  rpc CreateRoute(CreateRouteRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/regions/*/routeTables/*}/routes"
+      body: "route"
+    };
+    option (google.api.method_signature) = "parent,route";
+    option (google.longrunning.operation_info) = {
+      response_type: "Route"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Removes a route from its route table. The operation is done once the
+  // change is recorded; the network applies it within seconds.
+  rpc DeleteRoute(DeleteRouteRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/regions/*/routeTables/*/routes/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// A route: traffic to `destination` leaves through one gateway. Set exactly
+// one of `internet_gateway` and `nat_gateway`.
+message Route {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/Route"
+    pattern: "projects/{project}/regions/{region}/routeTables/{route_table}/routes/{route}"
+    plural: "routes"
+    singular: "route"
+  };
+
+  // The route's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The destination: the IPv4 default route, written with an all-zero
+  // address and prefix length 0, or the IPv6 one, `::/0`. A route table
+  // decides only where traffic to the internet goes.
+  string destination = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // The internet gateway of the table's VPC to send the traffic to.
+  string internet_gateway = 3 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/InternetGateway"
+  ];
+
+  // The NAT gateway in the table's VPC to send the traffic to, for the
+  // IPv4 default route only: a NAT gateway translates IPv4 only. Named in
+  // the gateway's own zone; a name with another zone is refused with
+  // `INVALID_ARGUMENT`.
+  string nat_gateway = 4 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/NatGateway"
+  ];
+}
+
+// The request for GetRoute.
+message GetRouteRequest {
+  // The route to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Route"
+  ];
+}
+
+// The request for ListRoutes.
+message ListRoutesRequest {
+  // The route table whose routes to list,
+  // `projects/{project}/regions/{region}/routeTables/{route_table}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/Route"
+  ];
+
+  // The most routes to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListRoutes.
+message ListRoutesResponse {
+  // The routes on this page.
+  repeated Route routes = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateRoute.
+message CreateRouteRequest {
+  // The route table to add the route to,
+  // `projects/{project}/regions/{region}/routeTables/{route_table}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/Route"
+  ];
+
+  // The route to add: its destination and its gateway.
+  Route route = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of adding the route again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteRoute.
+message DeleteRouteRequest {
+  // The route to remove.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Route"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

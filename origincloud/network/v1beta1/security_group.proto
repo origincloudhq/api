@@ -1,0 +1,213 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// Security groups: stateful filters on network interfaces. A group holds
+// rules (`SecurityGroupRuleService`), and applies to the interfaces that a
+// security group association names it for
+// (`SecurityGroupAssociationService`). An interface admits the traffic any
+// of its groups allows, and the replies to what it sends; everything else
+// is dropped.
+service SecurityGroupService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a security group.
+  rpc GetSecurityGroup(GetSecurityGroupRequest) returns (SecurityGroup) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/regions/*/securityGroups/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the security groups in a region, oldest first.
+  rpc ListSecurityGroups(ListSecurityGroupsRequest) returns (ListSecurityGroupsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/regions/*}/securityGroups"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a security group in a VPC, with no rules: it allows nothing
+  // until rules are added. The operation is done once the security group
+  // is recorded.
+  rpc CreateSecurityGroup(CreateSecurityGroupRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/regions/*}/securityGroups"
+      body: "security_group"
+    };
+    option (google.api.method_signature) = "parent,security_group";
+    option (google.longrunning.operation_info) = {
+      response_type: "SecurityGroup"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Changes a security group's tags. The operation is done once the change
+  // is recorded.
+  rpc UpdateSecurityGroup(UpdateSecurityGroupRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{security_group.name=projects/*/regions/*/securityGroups/*}"
+      body: "security_group"
+    };
+    option (google.api.method_signature) = "security_group,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "SecurityGroup"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Deletes a security group with its rules. Refused for a group the
+  // platform created with its VPC, which goes with the VPC, and while a
+  // security group association names it. The operation is done once the
+  // change is recorded; the network applies it within seconds.
+  rpc DeleteSecurityGroup(DeleteSecurityGroupRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/regions/*/securityGroups/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// Rules that allow traffic to and from the network interfaces associated
+// with the group.
+message SecurityGroup {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/SecurityGroup"
+    pattern: "projects/{project}/regions/{region}/securityGroups/{security_group}"
+    plural: "securityGroups"
+    singular: "securityGroup"
+  };
+
+  // The group's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The group's URN, the identifier access policies and the audit log use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The VPC the group belongs to, in the same project and region.
+  string vpc = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
+  ];
+
+  // Whether the platform created the group with the VPC. Only the
+  // project's default VPC has such resources. It can't be deleted, and
+  // goes with its VPC.
+  bool vpc_default = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the security group was created.
+  google.protobuf.Timestamp create_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the security group, such as `user:<id>` or
+  // `service_account:<id>`; empty for one the platform created.
+  string creator = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Labels of your own, at most 50. The `origin:name` tag is the name the
+  // console shows.
+  map<string, string> tags = 7 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for GetSecurityGroup.
+message GetSecurityGroupRequest {
+  // The security group to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroup"
+  ];
+}
+
+// The request for ListSecurityGroups.
+message ListSecurityGroupsRequest {
+  // The region whose security groups to list,
+  // `projects/{project}/regions/{region}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/SecurityGroup"
+  ];
+
+  // The most security groups to return; the server clamps it, and 0
+  // means its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the groups of this VPC, when set.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)
+  string vpc = 4 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
+  ];
+}
+
+// The response for ListSecurityGroups.
+message ListSecurityGroupsResponse {
+  // The security groups on this page.
+  repeated SecurityGroup security_groups = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateSecurityGroup.
+message CreateSecurityGroupRequest {
+  // The region to create the security group in,
+  // `projects/{project}/regions/{region}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/SecurityGroup"
+  ];
+
+  // The group to create: its VPC, and optionally its tags.
+  SecurityGroup security_group = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of creating a second security group.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateSecurityGroup.
+message UpdateSecurityGroupRequest {
+  // The security group, by its name, with the fields to change.
+  SecurityGroup security_group = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `tags`, or `*`.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of changing the security group again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteSecurityGroup.
+message DeleteSecurityGroupRequest {
+  // The security group to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroup"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

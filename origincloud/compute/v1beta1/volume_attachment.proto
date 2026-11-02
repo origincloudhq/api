@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package origincloud.compute.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// Volume attachments: which volumes of the persistent volume service an
+// instance holds, and the device names its guest sees them under. Creating
+// one attaches a volume, deleting it detaches the volume.
+service VolumeAttachmentService {
+  option (google.api.default_host) = "compute.origincloudapis.eu";
+
+  // Returns a volume attachment. A detached attachment isn't found.
+  rpc GetVolumeAttachment(GetVolumeAttachmentRequest) returns (VolumeAttachment) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/zones/*/instances/*/volumeAttachments/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists an instance's volume attachments, the boot volume's first, then
+  // by device name. With `-` for the instance, lists every instance's in the
+  // zone, which with `volume` finds the instance holding a volume.
+  // Detached attachments aren't listed.
+  rpc ListVolumeAttachments(ListVolumeAttachmentsRequest) returns (ListVolumeAttachmentsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*/instances/*}/volumeAttachments"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Attaches an `AVAILABLE` volume to a `RUNNING` or `STOPPED` instance in
+  // the same project and zone. On a stopped instance the disk appears at
+  // the next start, and the operation is done at once. On a running one it
+  // is added live, and the operation is done once the guest sees it, or
+  // failed if it couldn't be added, which leaves the volume available.
+  rpc CreateVolumeAttachment(CreateVolumeAttachmentRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/zones/*/instances/*}/volumeAttachments"
+      body: "volume_attachment"
+    };
+    option (google.api.method_signature) = "parent,volume_attachment";
+    option (google.longrunning.operation_info) = {
+      response_type: "VolumeAttachment"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Detaches a volume, which then is `AVAILABLE` again. The boot volume
+  // can't be detached. On a running instance the device is removed live;
+  // if the guest doesn't release it, the operation fails and the volume
+  // stays attached. The operation is done once the volume is detached.
+  rpc DeleteVolumeAttachment(DeleteVolumeAttachmentRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/zones/*/instances/*/volumeAttachments/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// A volume an instance holds.
+message VolumeAttachment {
+  option (google.api.resource) = {
+    type: "compute.origincloudapis.eu/VolumeAttachment"
+    pattern: "projects/{project}/zones/{zone}/instances/{instance}/volumeAttachments/{volume_attachment}"
+    plural: "volumeAttachments"
+    singular: "volumeAttachment"
+  };
+
+  // Where the attachment is.
+  enum State {
+    // Not set.
+    STATE_UNSPECIFIED = 0;
+    // The volume is being created or claimed for the instance.
+    CREATING = 1;
+    // Being added to the running guest.
+    ATTACHING = 2;
+    // Attached.
+    ATTACHED = 3;
+    // Being removed from the running guest.
+    DETACHING = 4;
+    // Being released, as the instance is terminated.
+    RELEASING = 5;
+    // The platform stopped trying to release the volume, which may still
+    // be held.
+    RELEASE_ABANDONED = 6;
+    // The volume couldn't be attached, and was released.
+    FAILED = 7;
+  }
+
+  // The attachment's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The attachment's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The volume, in the instance's project and zone.
+  string volume = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/Volume"
+  ];
+
+  // The device name the guest sees the volume under, `vda` to `vdz`. The
+  // first free one when left empty.
+  string device = 4 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+
+  // Whether this is the instance's boot volume, which was attached at
+  // launch and can't be detached.
+  bool boot = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Where the attachment is.
+  State state = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetVolumeAttachment.
+message GetVolumeAttachmentRequest {
+  // The attachment to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/VolumeAttachment"
+  ];
+}
+
+// The request for ListVolumeAttachments.
+message ListVolumeAttachmentsRequest {
+  // The instance whose attachments to list,
+  // `projects/{project}/zones/{zone}/instances/{instance}`, or `-` for the
+  // instance to list every instance's in the zone.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "compute.origincloudapis.eu/VolumeAttachment"
+  ];
+
+  // The most attachments to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the attachments of this volume; every volume's when left empty.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)
+  string volume = 4 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/Volume"
+  ];
+}
+
+// The response for ListVolumeAttachments.
+message ListVolumeAttachmentsResponse {
+  // The attachments on this page.
+  repeated VolumeAttachment volume_attachments = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateVolumeAttachment.
+message CreateVolumeAttachmentRequest {
+  // The instance to attach the volume to,
+  // `projects/{project}/zones/{zone}/instances/{instance}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "compute.origincloudapis.eu/VolumeAttachment"
+  ];
+
+  // The attachment to create: its volume, and optionally its device name.
+  VolumeAttachment volume_attachment = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of attaching again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteVolumeAttachment.
+message DeleteVolumeAttachmentRequest {
+  // The attachment to delete, detaching its volume.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/VolumeAttachment"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

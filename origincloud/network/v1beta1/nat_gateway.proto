@@ -1,0 +1,211 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// NAT gateways: shared IPv4 egress for instances without a floating IP of
+// their own. Instances in a subnet whose route table sends the IPv4 default
+// route to a NAT gateway reach the internet as the gateway's floating IP,
+// and can't be reached from it.
+service NatGatewayService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a NAT gateway.
+  rpc GetNatGateway(GetNatGatewayRequest) returns (NatGateway) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/zones/*/natGateways/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the NAT gateways in a zone, oldest first.
+  rpc ListNatGateways(ListNatGatewaysRequest) returns (ListNatGatewaysResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*}/natGateways"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a NAT gateway in a public subnet, one whose route table sends
+  // the IPv4 default route to an internet gateway, with a floating IP that
+  // has no association and backs no other NAT gateway. The operation is
+  // done once the change is recorded; the network applies it within
+  // seconds.
+  rpc CreateNatGateway(CreateNatGatewayRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/zones/*}/natGateways"
+      body: "nat_gateway"
+    };
+    option (google.api.method_signature) = "parent,nat_gateway";
+    option (google.longrunning.operation_info) = {
+      response_type: "NatGateway"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Changes a NAT gateway's tags. The operation is done once the change is
+  // recorded.
+  rpc UpdateNatGateway(UpdateNatGatewayRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{nat_gateway.name=projects/*/zones/*/natGateways/*}"
+      body: "nat_gateway"
+    };
+    option (google.api.method_signature) = "nat_gateway,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "NatGateway"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Deletes a NAT gateway. Its floating IP stays allocated. Refused while
+  // a route targets it. The operation is done once the change is recorded;
+  // the network applies it within seconds.
+  rpc DeleteNatGateway(DeleteNatGatewayRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/zones/*/natGateways/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// Shared IPv4 egress through one floating IP.
+message NatGateway {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/NatGateway"
+    pattern: "projects/{project}/zones/{zone}/natGateways/{nat_gateway}"
+    plural: "natGateways"
+    singular: "natGateway"
+  };
+
+  // The gateway's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The gateway's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The public subnet the gateway lives in, in the same project and zone.
+  string subnet = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Subnet"
+  ];
+
+  // The floating IP instances behind the gateway appear as, in the same
+  // project and zone. It stays allocated when the gateway is deleted.
+  string floating_ip = 4 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/FloatingIp"
+  ];
+
+  // The subnet's VPC.
+  string vpc = 5 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
+  ];
+
+  // When the NAT gateway was created.
+  google.protobuf.Timestamp create_time = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the NAT gateway, such as `user:<id>` or
+  // `service_account:<id>`; empty for one the platform created.
+  string creator = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Labels of your own, at most 50. The `origin:name` tag is the name the
+  // console shows.
+  map<string, string> tags = 8 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for GetNatGateway.
+message GetNatGatewayRequest {
+  // The NAT gateway to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/NatGateway"
+  ];
+}
+
+// The request for ListNatGateways.
+message ListNatGatewaysRequest {
+  // The zone whose NAT gateways to list, `projects/{project}/zones/{zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/NatGateway"
+  ];
+
+  // The most NAT gateways to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListNatGateways.
+message ListNatGatewaysResponse {
+  // The NAT gateways on this page.
+  repeated NatGateway nat_gateways = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateNatGateway.
+message CreateNatGatewayRequest {
+  // The zone to create the NAT gateway in, `projects/{project}/zones/{zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/NatGateway"
+  ];
+
+  // The gateway to create: its subnet and floating IP, and optionally its
+  // tags.
+  NatGateway nat_gateway = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of creating a second NAT gateway.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateNatGateway.
+message UpdateNatGatewayRequest {
+  // The NAT gateway, by its name, with the fields to change.
+  NatGateway nat_gateway = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `tags`, or `*`.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of changing the NAT gateway again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteNatGateway.
+message DeleteNatGatewayRequest {
+  // The NAT gateway to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/NatGateway"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

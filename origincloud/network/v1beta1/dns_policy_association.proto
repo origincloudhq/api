@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// DNS policy associations: which DNS policy a VPC's resolver relays through.
+// A VPC has at most one; without one, it relays through the project's
+// default DNS policy in its region (see the VPC's `dns_policy`). An
+// association's id is the id of the DNS policy it names, so a client that
+// knows the VPC and the policy names the association without listing. To
+// move a VPC to another policy, delete its association and create another.
+service DnsPolicyAssociationService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a DNS policy association.
+  rpc GetDnsPolicyAssociation(GetDnsPolicyAssociationRequest) returns (DnsPolicyAssociation) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/regions/*/vpcs/*/dnsPolicyAssociations/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a VPC's DNS policy associations: none or one.
+  rpc ListDnsPolicyAssociations(ListDnsPolicyAssociationsRequest) returns (ListDnsPolicyAssociationsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/regions/*/vpcs/*}/dnsPolicyAssociations"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Associates a DNS policy with a VPC. Refused with `FAILED_PRECONDITION`
+  // when the VPC has a DNS policy association. The operation is done once
+  // the change is recorded; the VPC's resolver applies it within seconds.
+  rpc CreateDnsPolicyAssociation(CreateDnsPolicyAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/regions/*/vpcs/*}/dnsPolicyAssociations"
+      body: "dns_policy_association"
+    };
+    option (google.api.method_signature) = "parent,dns_policy_association";
+    option (google.longrunning.operation_info) = {
+      response_type: "DnsPolicyAssociation"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Removes a VPC's DNS policy association: the VPC relays through the
+  // project's default DNS policy in its region again. The operation is done
+  // once the change is recorded; the VPC's resolver applies it within
+  // seconds.
+  rpc DeleteDnsPolicyAssociation(DeleteDnsPolicyAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/regions/*/vpcs/*/dnsPolicyAssociations/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// The DNS policy a VPC's resolver relays through.
+message DnsPolicyAssociation {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/DnsPolicyAssociation"
+    pattern: "projects/{project}/regions/{region}/vpcs/{vpc}/dnsPolicyAssociations/{dns_policy_association}"
+    plural: "dnsPolicyAssociations"
+    singular: "dnsPolicyAssociation"
+  };
+
+  // The association's resource name. Its last segment is the DNS policy's
+  // id.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The DNS policy the VPC relays through, in the VPC's project and region.
+  string dns_policy = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/DnsPolicy"
+  ];
+}
+
+// The request for GetDnsPolicyAssociation.
+message GetDnsPolicyAssociationRequest {
+  // The association to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/DnsPolicyAssociation"
+  ];
+}
+
+// The request for ListDnsPolicyAssociations.
+message ListDnsPolicyAssociationsRequest {
+  // The VPC whose association to list,
+  // `projects/{project}/regions/{region}/vpcs/{vpc}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/DnsPolicyAssociation"
+  ];
+
+  // The most associations to return; the server clamps it, and 0 means
+  // its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListDnsPolicyAssociations.
+message ListDnsPolicyAssociationsResponse {
+  // The associations on this page.
+  repeated DnsPolicyAssociation dns_policy_associations = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateDnsPolicyAssociation.
+message CreateDnsPolicyAssociationRequest {
+  // The VPC to associate the DNS policy with,
+  // `projects/{project}/regions/{region}/vpcs/{vpc}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/DnsPolicyAssociation"
+  ];
+
+  // The association to create: its DNS policy.
+  DnsPolicyAssociation dns_policy_association = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteDnsPolicyAssociation.
+message DeleteDnsPolicyAssociationRequest {
+  // The association to remove.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/DnsPolicyAssociation"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

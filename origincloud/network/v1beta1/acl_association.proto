@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// ACL associations: which ACL filters a subnet's traffic at its edge. A
+// subnet has at most one; without one, nothing is filtered at its edge (see
+// the subnet's `acl`). An association's id is the id of the ACL it names, so
+// a client that knows the subnet and the ACL names the association without
+// listing. To move a subnet to another ACL, delete its association and
+// create another.
+service AclAssociationService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns an ACL association.
+  rpc GetAclAssociation(GetAclAssociationRequest) returns (AclAssociation) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/zones/*/subnets/*/aclAssociations/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a subnet's ACL associations: none or one.
+  rpc ListAclAssociations(ListAclAssociationsRequest) returns (ListAclAssociationsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*/subnets/*}/aclAssociations"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Associates an ACL with a subnet. Refused with `FAILED_PRECONDITION`
+  // when the subnet has an ACL association. The operation is done once the
+  // change is recorded; the network applies it within seconds.
+  rpc CreateAclAssociation(CreateAclAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/zones/*/subnets/*}/aclAssociations"
+      body: "acl_association"
+    };
+    option (google.api.method_signature) = "parent,acl_association";
+    option (google.longrunning.operation_info) = {
+      response_type: "AclAssociation"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Removes a subnet's ACL association: nothing is filtered at its edge any
+  // more, and its interfaces' security groups still apply. The operation is
+  // done once the change is recorded; the network applies it within seconds.
+  rpc DeleteAclAssociation(DeleteAclAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/zones/*/subnets/*/aclAssociations/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// The ACL that filters a subnet's traffic at its edge.
+message AclAssociation {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/AclAssociation"
+    pattern: "projects/{project}/zones/{zone}/subnets/{subnet}/aclAssociations/{acl_association}"
+    plural: "aclAssociations"
+    singular: "aclAssociation"
+  };
+
+  // The association's resource name. Its last segment is the ACL's id.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The ACL that filters the subnet's traffic, in the subnet's VPC.
+  string acl = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Acl"
+  ];
+}
+
+// The request for GetAclAssociation.
+message GetAclAssociationRequest {
+  // The association to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/AclAssociation"
+  ];
+}
+
+// The request for ListAclAssociations.
+message ListAclAssociationsRequest {
+  // The subnet whose association to list,
+  // `projects/{project}/zones/{zone}/subnets/{subnet}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/AclAssociation"
+  ];
+
+  // The most associations to return; the server clamps it, and 0 means
+  // its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListAclAssociations.
+message ListAclAssociationsResponse {
+  // The associations on this page.
+  repeated AclAssociation acl_associations = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateAclAssociation.
+message CreateAclAssociationRequest {
+  // The subnet to associate the ACL with,
+  // `projects/{project}/zones/{zone}/subnets/{subnet}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/AclAssociation"
+  ];
+
+  // The association to create: its ACL.
+  AclAssociation acl_association = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteAclAssociation.
+message DeleteAclAssociationRequest {
+  // The association to remove.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/AclAssociation"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

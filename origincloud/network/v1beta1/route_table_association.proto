@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// Route table associations: which route table a subnet uses. A subnet has at
+// most one; with none it has no route out of its VPC and counts as a subnet
+// whose route table has no default route. Internet access is decided per VPC
+// and address family, so a subnet without a default route still reaches, and
+// is reached from, the internet through a floating IP or an IPv6 address
+// while another subnet of its VPC routes out; network ACL and security group
+// rules are what keep its traffic in. An
+// association's id is the id of the route table it names, so a client that
+// knows the subnet and the table names the association without listing. To
+// move a subnet to another table, delete its association and create
+// another.
+service RouteTableAssociationService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a route table association.
+  rpc GetRouteTableAssociation(GetRouteTableAssociationRequest) returns (RouteTableAssociation) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/zones/*/subnets/*/routeTableAssociations/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a subnet's route table associations: none or one.
+  rpc ListRouteTableAssociations(ListRouteTableAssociationsRequest) returns (ListRouteTableAssociationsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*/subnets/*}/routeTableAssociations"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Associates a route table with a subnet. Refused with
+  // `FAILED_PRECONDITION` when the subnet has a route table association. The operation is done
+  // once the change is recorded; the network applies it within seconds.
+  rpc CreateRouteTableAssociation(CreateRouteTableAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/zones/*/subnets/*}/routeTableAssociations"
+      body: "route_table_association"
+    };
+    option (google.api.method_signature) = "parent,route_table_association";
+    option (google.longrunning.operation_info) = {
+      response_type: "RouteTableAssociation"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Removes a subnet's route table association. The subnet then has no
+  // route out of its VPC and counts as a subnet whose route table has no
+  // default route. The
+  // operation is done once the change is recorded; the network applies it
+  // within seconds.
+  rpc DeleteRouteTableAssociation(DeleteRouteTableAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/zones/*/subnets/*/routeTableAssociations/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// The route table a subnet uses.
+message RouteTableAssociation {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/RouteTableAssociation"
+    pattern: "projects/{project}/zones/{zone}/subnets/{subnet}/routeTableAssociations/{route_table_association}"
+    plural: "routeTableAssociations"
+    singular: "routeTableAssociation"
+  };
+
+  // The association's resource name. Its last segment is the route
+  // table's id.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The route table the subnet uses, in the subnet's VPC.
+  string route_table = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/RouteTable"
+  ];
+}
+
+// The request for GetRouteTableAssociation.
+message GetRouteTableAssociationRequest {
+  // The association to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/RouteTableAssociation"
+  ];
+}
+
+// The request for ListRouteTableAssociations.
+message ListRouteTableAssociationsRequest {
+  // The subnet whose association to list,
+  // `projects/{project}/zones/{zone}/subnets/{subnet}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/RouteTableAssociation"
+  ];
+
+  // The most associations to return; the server clamps it, and 0 means
+  // its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListRouteTableAssociations.
+message ListRouteTableAssociationsResponse {
+  // The associations on this page.
+  repeated RouteTableAssociation route_table_associations = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateRouteTableAssociation.
+message CreateRouteTableAssociationRequest {
+  // The subnet to associate the route table with,
+  // `projects/{project}/zones/{zone}/subnets/{subnet}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/RouteTableAssociation"
+  ];
+
+  // The association to create: its route table.
+  RouteTableAssociation route_table_association = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteRouteTableAssociation.
+message DeleteRouteTableAssociationRequest {
+  // The association to remove.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/RouteTableAssociation"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

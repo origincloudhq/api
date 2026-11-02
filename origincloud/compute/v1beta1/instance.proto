@@ -1,0 +1,508 @@
+syntax = "proto3";
+
+// Instances, images, key pairs, volume attachments and the instance catalog.
+//
+// An instance runs in one zone of a project, launched as an instance type
+// from an image: one of the project's own, a public image, or the public
+// image an image family currently names. Key pairs give SSH access to an
+// instance, and volume attachments connect block volumes to it. The catalog
+// of instance types, image families and public images is the same for
+// every caller, and reading it needs no permission.
+package origincloud.compute.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// Instances: virtual machines in one zone, booted from an image onto a
+// durable boot volume, with network interfaces created beforehand with the
+// network service.
+service InstanceService {
+  option (google.api.default_host) = "compute.origincloudapis.eu";
+
+  // Returns an instance. A terminated instance can be read by name for a
+  // day after it was terminated.
+  rpc GetInstance(GetInstanceRequest) returns (Instance) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/zones/*/instances/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the instances in a zone, oldest first. A terminated instance is
+  // listed for two hours after it was terminated. For every zone's
+  // instances, list the zones whose `services` name `compute` with the
+  // location service (`location.origincloudapis.eu`), then each zone's
+  // instances.
+  rpc ListInstances(ListInstancesRequest) returns (ListInstancesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*}/instances"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Launches an instance. The operation is done once the instance is
+  // `RUNNING`, or failed once it is `FAILED`, with the reason in
+  // `state_reason`; a failed instance still exists, and can be started
+  // again or deleted.
+  rpc CreateInstance(CreateInstanceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/zones/*}/instances"
+      body: "instance"
+    };
+    option (google.api.method_signature) = "parent,instance";
+    option (google.longrunning.operation_info) = {
+      response_type: "Instance"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Changes an instance's type or tags. A new `instance_type` needs the
+  // instance `STOPPED`, and is refused with `FAILED_PRECONDITION`
+  // otherwise; it takes effect at the next start. A larger type is checked
+  // against the same vCPU quota a launch is. The operation is done once the
+  // instance shows the change.
+  rpc UpdateInstance(UpdateInstanceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{instance.name=projects/*/zones/*/instances/*}"
+      body: "instance"
+    };
+    option (google.api.method_signature) = "instance,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "Instance"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Terminates an instance: its guest is stopped for good, its network
+  // interfaces are released, `AVAILABLE` again with their addresses (one
+  // created for it at launch is deleted), and
+  // its boot volume is deleted with it unless a snapshot of it exists.
+  // Other attached volumes are detached and kept.
+  // Terminating a terminated instance changes nothing. The operation is
+  // done once the instance is `TERMINATED`.
+  rpc DeleteInstance(DeleteInstanceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/zones/*/instances/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Starts a `STOPPED` or `FAILED` instance. It keeps its name, its
+  // addresses and its volumes, and may come back on another machine.
+  // Starting a running instance changes nothing; it is refused while the
+  // instance is `INITIALIZING`, `STOPPING` or `SHUTTING_DOWN`. The
+  // operation is done once the instance is `RUNNING`, or failed once it is
+  // `FAILED`.
+  rpc StartInstance(StartInstanceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=projects/*/zones/*/instances/*}:start"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "Instance"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Stops a running instance: its guest is shut down, and it keeps its
+  // volumes and addresses. Stopping a stopped instance changes nothing. The
+  // operation is done once the instance is `STOPPED`, or failed once it is
+  // `FAILED`.
+  rpc StopInstance(StopInstanceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=projects/*/zones/*/instances/*}:stop"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "Instance"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// A virtual machine in one zone.
+message Instance {
+  option (google.api.resource) = {
+    type: "compute.origincloudapis.eu/Instance"
+    pattern: "projects/{project}/zones/{zone}/instances/{instance}"
+    plural: "instances"
+    singular: "instance"
+  };
+
+  // Where the instance is in its lifecycle.
+  enum State {
+    // Not set.
+    STATE_UNSPECIFIED = 0;
+    // Its boot volume and network interface are being created; it starts
+    // on its own once they are ready.
+    INITIALIZING = 1;
+    // Being placed on a machine and booted.
+    PENDING = 2;
+    // Running.
+    RUNNING = 3;
+    // Shutting down, to `STOPPED`.
+    STOPPING = 4;
+    // Stopped: it holds its volumes and addresses, and no compute capacity
+    // is charged.
+    STOPPED = 5;
+    // Being terminated.
+    SHUTTING_DOWN = 6;
+    // Terminated. Readable by name for a day.
+    TERMINATED = 7;
+    // A start, a stop or the launch failed; `state_reason` says why. Start
+    // it again, or delete it.
+    FAILED = 8;
+  }
+
+  // The instance's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The instance's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The instance type, `instanceTypes/{instance_type}`, such as
+  // `instanceTypes/gp1.core.2`: one whose `available` is true. Changing it
+  // needs the instance `STOPPED`.
+  string instance_type = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/InstanceType"
+  ];
+
+  // The image the boot volume is created from, in the instance's zone: one
+  // of the project's own, `projects/{project}/zones/{zone}/images/{image}`,
+  // or a public one, `zones/{zone}/images/{image}`. Set exactly one of
+  // `image` and `image_family`; launched from a family, this is the public
+  // image the family resolved to.
+  string image = 4 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/Image"
+  ];
+
+  // The image family to launch the current public image of,
+  // `imageFamilies/{image_family}`. Set exactly one of `image` and
+  // `image_family`. Empty when the instance was launched from an image.
+  string image_family = 5 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/ImageFamily"
+  ];
+
+  // The key pair whose public key is installed for `login_user`, in the
+  // instance's project.
+  string key_pair = 6 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/KeyPair"
+  ];
+
+  // The account to log in as: a user created at first boot that holds the
+  // key pair. A POSIX user name of at most 32 lowercase letters, digits,
+  // underscores and hyphens, starting with a letter or an underscore, and
+  // not `root`. The image's `default_user` when left empty.
+  string login_user = 7 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+
+  // The boot volume: its size and storage class at launch, and the volume.
+  // The image's size on the default storage class when left out.
+  BootVolume boot_volume = 8 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+
+  // The network interfaces, in device order, the boot interface first;
+  // exactly one today. Each is an existing interface in the instance's
+  // project and zone that nothing else holds, created with the network
+  // service: its subnet and security groups are the instance's.
+  // Terminating the instance releases it, and it stays. An instance
+  // launched before interfaces were named at launch shows the interface
+  // created for it, which is deleted with the instance.
+  repeated string network_interfaces = 9 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/NetworkInterface"
+  ];
+
+  // Where the instance is in its lifecycle.
+  State state = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Why the instance is `FAILED`, or why a `STOPPED` instance went down
+  // when the machine it ran on failed; empty otherwise.
+  string state_reason = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether the platform can currently confirm the instance is working,
+  // which `state` doesn't say: a `RUNNING` instance on a machine that
+  // stopped answering is still `RUNNING`.
+  InstanceHealth health = 12 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the instance was launched.
+  google.protobuf.Timestamp create_time = 13 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that launched the instance, such as `user:<id>` or
+  // `service_account:<id>`.
+  string creator = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Labels of your own, at most 50. The `origin:name` tag is the name the
+  // console shows.
+  map<string, string> tags = 15 [(google.api.field_behavior) = OPTIONAL];
+
+  // Each network interface's private addresses, in the order of
+  // `network_interfaces`; an interface not attached yet has none.
+  repeated InterfaceAddresses interface_addresses = 16 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// An instance's boot volume.
+message BootVolume {
+  // The size in GiB the volume was created with, at least the image's
+  // size; the image's size when left at 0. Grow the volume itself to
+  // resize it; this keeps the size at launch.
+  int32 size_gib = 1 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+
+  // The storage class, `storageClasses/{storage_class}` of the persistent
+  // volume service; the default class when left empty.
+  string storage_class = 2 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/StorageClass"
+  ];
+
+  // The volume, in the instance's project and zone.
+  string volume = 3 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/Volume"
+  ];
+}
+
+// The private addresses of one of an instance's network interfaces.
+message InterfaceAddresses {
+  // The network interface.
+  string network_interface = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/NetworkInterface"
+  ];
+
+  // Its private IPv4 address.
+  string ipv4_address = 2 [
+    (google.api.field_info).format = IPV4,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // Its IPv6 address.
+  string ipv6_address = 3 [
+    (google.api.field_info).format = IPV6,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+}
+
+// An instance's health: each check, and their summary.
+message InstanceHealth {
+  // The summary of the checks.
+  enum Availability {
+    // Not set.
+    AVAILABILITY_UNSPECIFIED = 0;
+    // Every check that applies passed.
+    AVAILABLE = 1;
+    // A check failed.
+    IMPAIRED = 2;
+    // A check that applies has no recent observation.
+    UNKNOWN = 3;
+    // No check applies, as for a stopped instance.
+    NOT_APPLICABLE = 4;
+  }
+
+  // The summary of `checks`, for a listing that shows one value per
+  // instance. Only the checks say whether a problem is the platform's or
+  // the instance's own.
+  Availability availability = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Every check, always all of them: one with nothing to report is
+  // `NOT_APPLICABLE` or `INSUFFICIENT_DATA`, never left out.
+  repeated HealthCheck checks = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// One health check of an instance.
+message HealthCheck {
+  // What a check observes.
+  enum Kind {
+    // Not set.
+    KIND_UNSPECIFIED = 0;
+    // The machine the instance runs on answers.
+    HOST_REACHABLE = 1;
+    // The machine reports the virtual machine in the state it should be in.
+    DOMAIN_STATE = 2;
+    // The instance answers on its network interface.
+    NETWORK_REACHABLE = 3;
+    // The agent in the guest answers.
+    GUEST_AGENT = 4;
+    // The virtual machine exists on its machine.
+    GUEST_PRESENT = 5;
+  }
+
+  // Whose a check's subject is.
+  enum Category {
+    // Not set.
+    CATEGORY_UNSPECIFIED = 0;
+    // The platform underneath the instance.
+    SYSTEM = 1;
+    // The instance's own operating system and network configuration.
+    INSTANCE = 2;
+  }
+
+  // A check's outcome.
+  enum Outcome {
+    // Not set.
+    OUTCOME_UNSPECIFIED = 0;
+    // Passed.
+    OK = 1;
+    // Failed.
+    IMPAIRED = 2;
+    // No recent observation.
+    INSUFFICIENT_DATA = 3;
+    // The check doesn't apply now.
+    NOT_APPLICABLE = 4;
+  }
+
+  // What the check observes.
+  Kind kind = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whose the subject is, derived from `kind`.
+  Category category = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Its outcome.
+  Outcome outcome = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the check came to `outcome`; empty while nothing has observed it.
+  google.protobuf.Timestamp change_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetInstance.
+message GetInstanceRequest {
+  // The instance to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/Instance"
+  ];
+}
+
+// The request for ListInstances.
+message ListInstancesRequest {
+  // The zone whose instances to list, `projects/{project}/zones/{zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "compute.origincloudapis.eu/Instance"
+  ];
+
+  // The most instances to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListInstances.
+message ListInstancesResponse {
+  // The instances on this page.
+  repeated Instance instances = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateInstance.
+message CreateInstanceRequest {
+  // The zone to launch the instance in, `projects/{project}/zones/{zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "compute.origincloudapis.eu/Instance"
+  ];
+
+  // The instance to launch: its type, its image or image family, its key
+  // pair and its network interface, and optionally its login user, boot
+  // volume and tags.
+  Instance instance = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of launching a second instance.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateInstance.
+message UpdateInstanceRequest {
+  // The instance, by its name, with the fields to change.
+  Instance instance = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `instance_type`, `tags`, or both. `*` is both.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of changing the instance again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteInstance.
+message DeleteInstanceRequest {
+  // The instance to terminate.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/Instance"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for StartInstance.
+message StartInstanceRequest {
+  // The instance to start.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/Instance"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for StopInstance.
+message StopInstanceRequest {
+  // The instance to stop.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/Instance"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

@@ -1,0 +1,261 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// Network interfaces: private IPv4 and IPv6 addresses in a subnet, with the
+// security groups that filter their traffic. Launching an instance attaches
+// existing interfaces, which are created here first; an interface starts
+// closed until security group associations open it.
+service NetworkInterfaceService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a network interface.
+  rpc GetNetworkInterface(GetNetworkInterfaceRequest) returns (NetworkInterface) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/zones/*/networkInterfaces/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the network interfaces in a zone, oldest first.
+  rpc ListNetworkInterfaces(ListNetworkInterfacesRequest) returns (ListNetworkInterfacesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*}/networkInterfaces"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates an unattached network interface with the next free addresses
+  // of its subnet and no security group: it admits and sends nothing until
+  // a security group association opens it. The operation is done once the
+  // change is recorded; the network applies it within seconds.
+  rpc CreateNetworkInterface(CreateNetworkInterfaceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/zones/*}/networkInterfaces"
+      body: "network_interface"
+    };
+    option (google.api.method_signature) = "parent,network_interface";
+    option (google.longrunning.operation_info) = {
+      response_type: "NetworkInterface"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Changes a network interface's source-address check or tags, also while
+  // it is attached. The operation is done once the change is recorded; the
+  // network applies it within seconds.
+  rpc UpdateNetworkInterface(UpdateNetworkInterfaceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{network_interface.name=projects/*/zones/*/networkInterfaces/*}"
+      body: "network_interface"
+    };
+    option (google.api.method_signature) = "network_interface,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "NetworkInterface"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Deletes a network interface with its security group associations.
+  // Refused while it is attached to an instance or a floating IP is
+  // associated with it. The operation is done once the change is
+  // recorded; the network applies it within seconds.
+  rpc DeleteNetworkInterface(DeleteNetworkInterfaceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/zones/*/networkInterfaces/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// A network interface: private addresses in one subnet, filtered by security
+// groups.
+message NetworkInterface {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/NetworkInterface"
+    pattern: "projects/{project}/zones/{zone}/networkInterfaces/{network_interface}"
+    plural: "networkInterfaces"
+    singular: "networkInterface"
+  };
+
+  // Whether an interface is in use.
+  enum State {
+    // Not set.
+    STATE_UNSPECIFIED = 0;
+    // Not attached to anything.
+    AVAILABLE = 1;
+    // Attached; `instance` names what to.
+    ATTACHED = 2;
+  }
+
+  // The interface's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The interface's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The subnet the interface has its addresses in, in the same project
+  // and zone.
+  string subnet = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Subnet"
+  ];
+
+  // The security groups that filter the interface's traffic, as its
+  // security group associations (each a `SecurityGroupAssociation`) set
+  // them. The interface admits the traffic any of them allows. With none,
+  // it admits and sends nothing except replies to its own traffic and
+  // address resolution (ARP and IPv6 neighbor discovery): it is closed.
+  repeated string security_groups = 4 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_behavior) = UNORDERED_LIST,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroup"
+  ];
+
+  // Whether a packet the instance sends must carry the interface's own
+  // MAC and IP address as its source; `true` when left unset. Turn it off
+  // for an instance that forwards traffic for other addresses, such as a
+  // router, a NAT instance or a shared virtual IP.
+  optional bool source_address_check = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // The interface's private IPv4 address.
+  string ipv4_address = 6 [
+    (google.api.field_info).format = IPV4,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // The interface's IPv6 address.
+  string ipv6_address = 7 [
+    (google.api.field_info).format = IPV6,
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // Whether the interface is in use.
+  State state = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The instance the interface is attached to; empty while it is
+  // `AVAILABLE`. An instance attaches interfaces when it is launched.
+  string instance = 9 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/Instance"
+  ];
+
+  // When the network interface was created.
+  google.protobuf.Timestamp create_time = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the network interface, such as `user:<id>`
+  // or `service_account:<id>`; empty for one the platform created.
+  string creator = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Labels of your own, at most 50. The `origin:name` tag is the name the
+  // console shows.
+  map<string, string> tags = 12 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for GetNetworkInterface.
+message GetNetworkInterfaceRequest {
+  // The network interface to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/NetworkInterface"
+  ];
+}
+
+// The request for ListNetworkInterfaces.
+message ListNetworkInterfacesRequest {
+  // The zone whose network interfaces to list,
+  // `projects/{project}/zones/{zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/NetworkInterface"
+  ];
+
+  // The most network interfaces to return; the server clamps it, and 0
+  // means its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the interfaces in this subnet, when set.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)
+  string subnet = 4 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Subnet"
+  ];
+}
+
+// The response for ListNetworkInterfaces.
+message ListNetworkInterfacesResponse {
+  // The network interfaces on this page.
+  repeated NetworkInterface network_interfaces = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateNetworkInterface.
+message CreateNetworkInterfaceRequest {
+  // The zone to create the network interface in,
+  // `projects/{project}/zones/{zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/NetworkInterface"
+  ];
+
+  // The interface to create: its subnet, and optionally its source-address
+  // check and tags.
+  NetworkInterface network_interface = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of creating a second network interface.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateNetworkInterface.
+message UpdateNetworkInterfaceRequest {
+  // The network interface, by its name, with the fields to change.
+  NetworkInterface network_interface = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `source_address_check`, `tags`, or both. `*` is
+  // both.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of changing the network interface again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteNetworkInterface.
+message DeleteNetworkInterfaceRequest {
+  // The network interface to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/NetworkInterface"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

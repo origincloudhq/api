@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package origincloud.resourcemanager.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "origincloud/resourcemanager/v1beta1/quota.proto";
+
+// Organizations: the account a company's projects, members and billing
+// belong to. Every project is in exactly one organization, and access to an
+// organization is granted with roles in the IAM API (`iam.origincloudapis.eu`).
+service OrganizationService {
+  option (google.api.default_host) = "resourcemanager.origincloudapis.eu";
+
+  // Returns an organization.
+  rpc GetOrganization(GetOrganizationRequest) returns (Organization) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the organizations the caller holds a role in, oldest first.
+  rpc ListOrganizations(ListOrganizationsRequest) returns (ListOrganizationsResponse) {
+    option (google.api.http) = {get: "/v1beta1/organizations"};
+  }
+
+  // Creates an organization. Any signed-in user can create one, and becomes
+  // its owner and the administrator of its default billing account, which
+  // is created with it without billing details: the organization can't be
+  // invoiced until they are set with the billing API
+  // (`billing.origincloudapis.eu`). A new organization is either `ACTIVE`
+  // at once or `PENDING_REVIEW`, depending on the platform's free capacity.
+  rpc CreateOrganization(CreateOrganizationRequest) returns (Organization) {
+    option (google.api.http) = {
+      post: "/v1beta1/organizations"
+      body: "organization"
+    };
+    option (google.api.method_signature) = "organization";
+  }
+
+  // Renames an organization.
+  rpc UpdateOrganization(UpdateOrganizationRequest) returns (Organization) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{organization.name=organizations/*}"
+      body: "organization"
+    };
+    option (google.api.method_signature) = "organization,update_mask";
+  }
+
+  // Deletes an organization. Refused as a `CONFLICT` while it
+  // still has a project: delete its projects first. Its quota and every
+  // role granted in it go with it. Its billing accounts stay, with their
+  // spend limits, so the last period can still be invoiced.
+  rpc DeleteOrganization(DeleteOrganizationRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1beta1/{name=organizations/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Returns an organization's quota: the most of each kind of resource its
+  // projects may hold together, and how much of it they use. The limits are
+  // set by the platform; ask support to raise one.
+  rpc GetOrganizationQuota(GetOrganizationQuotaRequest) returns (OrganizationQuota) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/quota}"};
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// An organization: the account its projects, members and billing belong to.
+message Organization {
+  option (google.api.resource) = {
+    type: "resourcemanager.origincloudapis.eu/Organization"
+    pattern: "organizations/{organization}"
+    plural: "organizations"
+    singular: "organization"
+  };
+
+  // Whether the organization may create resources.
+  enum State {
+    // Not set.
+    STATE_UNSPECIFIED = 0;
+    // Under review by the platform: it can't create projects or resources
+    // until it is `ACTIVE`.
+    PENDING_REVIEW = 1;
+    // Admitted: it can create projects and resources.
+    ACTIVE = 2;
+    // Not admitted. Final.
+    REJECTED = 3;
+  }
+
+  // The organization's resource name, `organizations/{organization}`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The organization's URN, the identifier access policies and the audit
+  // log use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The name the console shows, typically the company's name. Not empty.
+  string display_name = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Whether the organization may create resources. Decided by the
+  // platform, never by the organization's members.
+  State state = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the organization was created.
+  google.protobuf.Timestamp create_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the organization, such as `user:<id>` or
+  // `service_account:<id>`.
+  string creator = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetOrganization.
+message GetOrganizationRequest {
+  // The organization to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Organization"
+  ];
+}
+
+// The request for ListOrganizations.
+message ListOrganizationsRequest {
+  // The most organizations to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListOrganizations.
+message ListOrganizationsResponse {
+  // The organizations on this page.
+  repeated Organization organizations = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateOrganization.
+message CreateOrganizationRequest {
+  // The organization to create: its `display_name`.
+  Organization organization = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the organization the first
+  // request created instead of creating a second one.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateOrganization.
+message UpdateOrganizationRequest {
+  // The organization, by its name, with the fields to change.
+  Organization organization = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `display_name`. `*` is the same.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for DeleteOrganization.
+//
+// (-- api-linter: core::0135::force-field=disabled
+//     aip.dev/not-precedent: a delete never removes what its owner can delete, so there is nothing to force. --)
+message DeleteOrganizationRequest {
+  // The organization to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Organization"
+  ];
+}
+
+// The request for GetOrganizationQuota.
+message GetOrganizationQuotaRequest {
+  // The quota to return, `organizations/{organization}/quota`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/OrganizationQuota"
+  ];
+}

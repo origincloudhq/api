@@ -1,0 +1,184 @@
+syntax = "proto3";
+
+package origincloud.compute.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+
+// The catalog of instance types: every size the platform publishes, each
+// saying whether an instance can be launched as it right now. Not scoped to
+// an organisation or a project; no permission is needed.
+service InstanceTypeService {
+  option (google.api.default_host) = "compute.origincloudapis.eu";
+
+  // Returns an instance type.
+  rpc GetInstanceType(GetInstanceTypeRequest) returns (InstanceType) {
+    option (google.api.http) = {get: "/v1beta1/{name=instanceTypes/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists every instance type, including those no longer offered, which
+  // instances launched as them still report: check `available` before
+  // launching as one.
+  rpc ListInstanceTypes(ListInstanceTypesRequest) returns (ListInstanceTypesResponse) {
+    option (google.api.http) = {get: "/v1beta1/instanceTypes"};
+  }
+}
+
+// The catalog of image families: stable names that each launch whichever
+// public image is current for them, so a launch gets the latest build
+// without naming an image. Not scoped to an organisation or a project; no
+// permission is needed.
+service ImageFamilyService {
+  option (google.api.default_host) = "compute.origincloudapis.eu";
+
+  // Returns an image family.
+  rpc GetImageFamily(GetImageFamilyRequest) returns (ImageFamily) {
+    option (google.api.http) = {get: "/v1beta1/{name=imageFamilies/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists every image family, including those no longer offered: check
+  // `available` before launching from one.
+  rpc ListImageFamilies(ListImageFamiliesRequest) returns (ListImageFamiliesResponse) {
+    option (google.api.http) = {get: "/v1beta1/imageFamilies"};
+  }
+}
+
+// A size an instance is launched as.
+message InstanceType {
+  option (google.api.resource) = {
+    type: "compute.origincloudapis.eu/InstanceType"
+    pattern: "instanceTypes/{instance_type}"
+    plural: "instanceTypes"
+    singular: "instanceType"
+  };
+
+  // The type's resource name, `instanceTypes/gp1.core.2`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The name the console shows.
+  string display_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The hardware kind, such as `gp1`.
+  string kind = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // How its vCPUs are allocated, such as `core`: dedicated and guaranteed.
+  string cpu_allocation_mode = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The vCPUs an instance of the type has.
+  int32 vcpu = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The memory an instance of the type has, in MiB.
+  int32 memory_mib = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The most an instance of the type reads and writes across all its
+  // volumes together, in megabits per second; 0 when it isn't limited.
+  int32 storage_bandwidth_mbit = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The rate an instance of the type can burst to above
+  // `storage_bandwidth_mbit`, in megabits per second, for 60 seconds of
+  // traffic at that rate, which staying under the limit refills; 0 when it
+  // can't burst.
+  int32 storage_burst_bandwidth_mbit = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether an instance can be launched as, or changed to, the type now. A
+  // type listed but not available is no longer offered; instances already
+  // of the type keep running.
+  bool available = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A stable name for the current public image of an operating system
+// release.
+message ImageFamily {
+  option (google.api.resource) = {
+    type: "compute.origincloudapis.eu/ImageFamily"
+    pattern: "imageFamilies/{image_family}"
+    plural: "imageFamilies"
+    singular: "imageFamily"
+  };
+
+  // The family's resource name, `imageFamilies/ubuntu-24-04-minimal`.
+  // Never renamed, and never reused for another release.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The name the console shows.
+  string display_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What the family's images hold.
+  string description = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Who publishes the release, such as `Canonical`.
+  string vendor = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The operating system, such as `ubuntu`.
+  string os = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The release, such as `24.04`.
+  string os_version = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the vendor stops supporting the release; empty when no date is
+  // known. Advisory: launches aren't refused after it.
+  google.protobuf.Timestamp support_end_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether an instance can be launched from the family now. Instances
+  // launched from a family no longer offered are unaffected.
+  bool available = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetInstanceType.
+message GetInstanceTypeRequest {
+  // The type to return, `instanceTypes/{instance_type}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/InstanceType"
+  ];
+}
+
+// The request for ListInstanceTypes. The catalog is small and bounded by
+// the platform, so it comes in one page.
+//
+// (-- api-linter: core::0158::request-page-size-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few dozen types. --)
+// (-- api-linter: core::0158::request-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few dozen types. --)
+message ListInstanceTypesRequest {}
+
+// The response for ListInstanceTypes.
+//
+// (-- api-linter: core::0158::response-next-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few dozen types. --)
+message ListInstanceTypesResponse {
+  // Every instance type, by kind, then by size.
+  repeated InstanceType instance_types = 1;
+}
+
+// The request for GetImageFamily.
+message GetImageFamilyRequest {
+  // The family to return, `imageFamilies/{image_family}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/ImageFamily"
+  ];
+}
+
+// The request for ListImageFamilies. The catalog is small and bounded by
+// the platform, so it comes in one page.
+//
+// (-- api-linter: core::0158::request-page-size-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few families. --)
+// (-- api-linter: core::0158::request-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few families. --)
+message ListImageFamiliesRequest {}
+
+// The response for ListImageFamilies.
+//
+// (-- api-linter: core::0158::response-next-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few families. --)
+message ListImageFamiliesResponse {
+  // Every image family, by name.
+  repeated ImageFamily image_families = 1;
+}

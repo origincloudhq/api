@@ -1,0 +1,243 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// DNS policies: how a VPC's resolver answers names it isn't authoritative
+// for. A VPC relays through the policy its DNS policy association names
+// (`DnsPolicyAssociationService`), or else through the project's default
+// policy in its region.
+service DnsPolicyService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a DNS policy.
+  rpc GetDnsPolicy(GetDnsPolicyRequest) returns (DnsPolicy) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/regions/*/dnsPolicies/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the DNS policies in a region, oldest first, the project's
+  // default included.
+  rpc ListDnsPolicies(ListDnsPoliciesRequest) returns (ListDnsPoliciesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/regions/*}/dnsPolicies"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a DNS policy. It isn't the default: associate it with a VPC,
+  // or make it the default with `SetDefaultDnsPolicy`. The operation is
+  // done once the DNS policy is recorded.
+  rpc CreateDnsPolicy(CreateDnsPolicyRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/regions/*}/dnsPolicies"
+      body: "dns_policy"
+    };
+    option (google.api.method_signature) = "parent,dns_policy";
+    option (google.longrunning.operation_info) = {
+      response_type: "DnsPolicy"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Changes a DNS policy's relay settings or tags. The operation is done
+  // once the change is recorded; the resolvers of every VPC relaying
+  // through the policy apply it within seconds.
+  rpc UpdateDnsPolicy(UpdateDnsPolicyRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{dns_policy.name=projects/*/regions/*/dnsPolicies/*}"
+      body: "dns_policy"
+    };
+    option (google.api.method_signature) = "dns_policy,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "DnsPolicy"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Deletes a DNS policy. Refused for the project's default policy and
+  // while a DNS policy association names it. The operation is done once
+  // the change is recorded.
+  rpc DeleteDnsPolicy(DeleteDnsPolicyRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/regions/*/dnsPolicies/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Makes a DNS policy the project's default in its region, in place of
+  // the one before. Every VPC of the region without a DNS policy
+  // association relays through it from then on. Making the default the
+  // default changes nothing. The operation is done once the change is
+  // recorded; the resolvers apply it within seconds.
+  //
+  // (-- api-linter: core::0134::synonyms=disabled
+  //     aip.dev/not-precedent: it changes which policy is the project's default, not the policy's own fields, so it isn't an update of the policy. --)
+  // (-- api-linter: core::0136::http-uri-suffix=disabled
+  //     aip.dev/not-precedent: the verb is "set default", which ":set" alone would lose. --)
+  rpc SetDefaultDnsPolicy(SetDefaultDnsPolicyRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=projects/*/regions/*/dnsPolicies/*}:setDefault"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "DnsPolicy"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// How a VPC's resolver answers names outside the platform's own.
+message DnsPolicy {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/DnsPolicy"
+    pattern: "projects/{project}/regions/{region}/dnsPolicies/{dns_policy}"
+    plural: "dnsPolicies"
+    singular: "dnsPolicy"
+  };
+
+  // The policy's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The policy's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether this is the project's default policy in its region, which a
+  // VPC without a DNS policy association relays through. Change it with
+  // `SetDefaultDnsPolicy`.
+  bool project_default = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether the resolver relays names it can't answer itself to
+  // `upstream_servers`. Off, it answers only the platform's own names.
+  bool relay_enabled = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // The resolvers to relay to, at most 5 IPv4 or IPv6 addresses, tried in
+  // order. At least one while `relay_enabled` is on.
+  repeated string upstream_servers = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // When the DNS policy was created.
+  google.protobuf.Timestamp create_time = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the DNS policy, such as `user:<id>` or
+  // `service_account:<id>`; empty for one the platform created.
+  string creator = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Labels of your own, at most 50. The `origin:name` tag is the name the
+  // console shows.
+  map<string, string> tags = 8 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for GetDnsPolicy.
+message GetDnsPolicyRequest {
+  // The DNS policy to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/DnsPolicy"
+  ];
+}
+
+// The request for ListDnsPolicies.
+message ListDnsPoliciesRequest {
+  // The region whose DNS policies to list,
+  // `projects/{project}/regions/{region}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/DnsPolicy"
+  ];
+
+  // The most DNS policies to return; the server clamps it, and 0 means
+  // its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListDnsPolicies.
+message ListDnsPoliciesResponse {
+  // The DNS policies on this page.
+  repeated DnsPolicy dns_policies = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateDnsPolicy.
+message CreateDnsPolicyRequest {
+  // The region to create the DNS policy in,
+  // `projects/{project}/regions/{region}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/DnsPolicy"
+  ];
+
+  // The policy to create: its relay settings, and optionally its tags.
+  DnsPolicy dns_policy = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of creating a second DNS policy.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateDnsPolicy.
+message UpdateDnsPolicyRequest {
+  // The DNS policy, by its name, with the fields to change.
+  DnsPolicy dns_policy = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change, any of `relay_enabled`, `upstream_servers` and
+  // `tags`. `*` is all of them.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of changing the DNS policy again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteDnsPolicy.
+message DeleteDnsPolicyRequest {
+  // The DNS policy to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/DnsPolicy"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for SetDefaultDnsPolicy.
+message SetDefaultDnsPolicyRequest {
+  // The DNS policy to make the default.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/DnsPolicy"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

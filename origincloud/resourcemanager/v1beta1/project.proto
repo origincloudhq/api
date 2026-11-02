@@ -1,0 +1,222 @@
+syntax = "proto3";
+
+// Organizations, projects and their quotas.
+//
+// An organization is the account its projects, members and billing belong
+// to. A project is the namespace an organization's resources are created
+// in: every resource name of the other APIs starts with it. An
+// organization's quota is the most of each kind of resource its projects
+// may hold together; a project's budget can bound one project further.
+package origincloud.resourcemanager.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "origincloud/resourcemanager/v1beta1/quota.proto";
+
+// Projects: the namespace every resource is created in. A project belongs to
+// one organization, and every resource name of the other APIs starts with
+// it, `projects/{project}/...`.
+service ProjectService {
+  option (google.api.default_host) = "resourcemanager.origincloudapis.eu";
+
+  // Returns a project.
+  rpc GetProject(GetProjectRequest) returns (Project) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists an organization's projects, oldest first.
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option (google.api.http) = {get: "/v1beta1/projects"};
+    option (google.api.method_signature) = "organization";
+  }
+
+  // Creates a project in an `ACTIVE` organization, under the id the caller
+  // chooses. The caller becomes the project's owner, and the project is
+  // billed to the organization's default billing account. An id in use, or
+  // used by a project that was deleted, is refused as a `CONFLICT`.
+  rpc CreateProject(CreateProjectRequest) returns (Project) {
+    option (google.api.http) = {
+      post: "/v1beta1/projects"
+      body: "project"
+    };
+    option (google.api.method_signature) = "project,project_id";
+  }
+
+  // Renames a project.
+  rpc UpdateProject(UpdateProjectRequest) returns (Project) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{project.name=projects/*}"
+      body: "project"
+    };
+    option (google.api.method_signature) = "project,update_mask";
+  }
+
+  // Deletes a project. Refused as a `CONFLICT` while the project
+  // still has a resource you can delete yourself: an instance that isn't terminated, an image, a key
+  // pair, a volume or snapshot that isn't deleted, a NAT gateway, a floating
+  // IP, a VPC, or a DNS policy other than its default one. The refusal names
+  // every kind left, in the order to delete them. Nothing you can delete
+  // yourself is deleted on your behalf. The project's default DNS policy,
+  // its quota and every role granted on it go with it; roles granted on the
+  // organization stay.
+  rpc DeleteProject(DeleteProjectRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Returns a project's quota: the budget of each kind of resource the
+  // project may hold, if one is set, and how much of it the project uses.
+  rpc GetProjectQuota(GetProjectQuotaRequest) returns (ProjectQuota) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/quota}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Sets or removes a project's budgets. A budget named in `update_mask`
+  // is set to the value given, or removed when the value is left out.
+  rpc UpdateProjectQuota(UpdateProjectQuotaRequest) returns (ProjectQuota) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{project_quota.name=projects/*/quota}"
+      body: "project_quota"
+    };
+    option (google.api.method_signature) = "project_quota,update_mask";
+  }
+}
+
+// A project: the namespace an organization's resources are created in.
+message Project {
+  option (google.api.resource) = {
+    type: "resourcemanager.origincloudapis.eu/Project"
+    pattern: "projects/{project}"
+    plural: "projects"
+    singular: "project"
+  };
+
+  // The project's resource name, `projects/{project}`. The id, chosen when
+  // the project is created, is unique across the platform and never used
+  // again, not even after the project is deleted.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The project's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The organization the project belongs to, `organizations/{organization}`.
+  string organization = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Organization"
+  ];
+
+  // The name the console shows. Not empty.
+  string display_name = 4 [(google.api.field_behavior) = REQUIRED];
+
+  // When the project was created.
+  google.protobuf.Timestamp create_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the project, such as `user:<id>` or
+  // `service_account:<id>`.
+  string creator = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetProject.
+message GetProjectRequest {
+  // The project to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
+}
+
+// The request for ListProjects.
+message ListProjectsRequest {
+  // The organization whose projects to list, `organizations/{organization}`.
+  //
+  // (-- api-linter: core::0132::request-required-fields=disabled
+  //     api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a project's name has no parent segment, so the organization narrowing the list is a typed field. --)
+  string organization = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Organization"
+  ];
+
+  // The most projects to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListProjects.
+message ListProjectsResponse {
+  // The projects on this page.
+  repeated Project projects = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateProject.
+message CreateProjectRequest {
+  // The project to create: its `organization` and `display_name`.
+  Project project = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The project's id, the last segment of its name: 6 to 16 lowercase
+  // letters, digits and hyphens, starting with a letter and not ending with
+  // a hyphen, such as `acme-prod`.
+  string project_id = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the project the first request
+  // created instead of creating a second one.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateProject.
+message UpdateProjectRequest {
+  // The project, by its name, with the fields to change.
+  Project project = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `display_name`. `*` is the same.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for DeleteProject.
+//
+// (-- api-linter: core::0135::force-field=disabled
+//     aip.dev/not-precedent: a delete never removes what its owner can delete, so there is nothing to force. --)
+message DeleteProjectRequest {
+  // The project to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
+}
+
+// The request for GetProjectQuota.
+message GetProjectQuotaRequest {
+  // The quota to return, `projects/{project}/quota`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/ProjectQuota"
+  ];
+}
+
+// The request for UpdateProjectQuota.
+message UpdateProjectQuotaRequest {
+  // The quota, by its name, with the budgets to set.
+  ProjectQuota project_quota = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The budgets to set or remove, such as `max_vcpu`. `*` is every budget:
+  // those given are set, the others removed.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}

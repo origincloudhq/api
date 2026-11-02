@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// Security group associations: which security groups filter a network
+// interface's traffic. An interface can have many, and admits the traffic
+// any of them allows; without one, it is closed (see the interface's
+// `security_groups`). An association's id is the id of the security group it
+// names, so a client that knows the interface and the group names the
+// association without listing.
+service SecurityGroupAssociationService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a security group association.
+  rpc GetSecurityGroupAssociation(GetSecurityGroupAssociationRequest) returns (SecurityGroupAssociation) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/zones/*/networkInterfaces/*/securityGroupAssociations/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a network interface's security group associations, oldest first.
+  rpc ListSecurityGroupAssociations(ListSecurityGroupAssociationsRequest) returns (ListSecurityGroupAssociationsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/zones/*/networkInterfaces/*}/securityGroupAssociations"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Associates a security group with a network interface, also while it is
+  // attached. Refused with `FAILED_PRECONDITION` when the interface is
+  // associated with that group. The operation is done once the change is recorded; the
+  // network applies it within seconds.
+  rpc CreateSecurityGroupAssociation(CreateSecurityGroupAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/zones/*/networkInterfaces/*}/securityGroupAssociations"
+      body: "security_group_association"
+    };
+    option (google.api.method_signature) = "parent,security_group_association";
+    option (google.longrunning.operation_info) = {
+      response_type: "SecurityGroupAssociation"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Removes a security group from a network interface. Without any, the
+  // interface admits and sends nothing except replies to its own traffic and
+  // address resolution. The operation is done once the change is recorded;
+  // the network applies it within seconds.
+  rpc DeleteSecurityGroupAssociation(DeleteSecurityGroupAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/zones/*/networkInterfaces/*/securityGroupAssociations/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// A security group that filters a network interface's traffic.
+message SecurityGroupAssociation {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/SecurityGroupAssociation"
+    pattern: "projects/{project}/zones/{zone}/networkInterfaces/{network_interface}/securityGroupAssociations/{security_group_association}"
+    plural: "securityGroupAssociations"
+    singular: "securityGroupAssociation"
+  };
+
+  // The association's resource name. Its last segment is the security
+  // group's id.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The security group, in the interface's VPC.
+  string security_group = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroup"
+  ];
+}
+
+// The request for GetSecurityGroupAssociation.
+message GetSecurityGroupAssociationRequest {
+  // The association to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroupAssociation"
+  ];
+}
+
+// The request for ListSecurityGroupAssociations.
+message ListSecurityGroupAssociationsRequest {
+  // The network interface whose associations to list,
+  // `projects/{project}/zones/{zone}/networkInterfaces/{network_interface}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/SecurityGroupAssociation"
+  ];
+
+  // The most associations to return; the server clamps it, and 0 means
+  // its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListSecurityGroupAssociations.
+message ListSecurityGroupAssociationsResponse {
+  // The associations on this page.
+  repeated SecurityGroupAssociation security_group_associations = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateSecurityGroupAssociation.
+message CreateSecurityGroupAssociationRequest {
+  // The network interface to associate the security group with,
+  // `projects/{project}/zones/{zone}/networkInterfaces/{network_interface}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/SecurityGroupAssociation"
+  ];
+
+  // The association to create: its security group.
+  SecurityGroupAssociation security_group_association = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteSecurityGroupAssociation.
+message DeleteSecurityGroupAssociationRequest {
+  // The association to remove.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroupAssociation"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

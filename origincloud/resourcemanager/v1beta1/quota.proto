@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package origincloud.resourcemanager.v1beta1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+// An organization's quota: the most of each kind of resource its projects
+// may hold together, and how much of it they use. Creating a resource past a
+// limit is refused.
+message OrganizationQuota {
+  option (google.api.resource) = {
+    type: "resourcemanager.origincloudapis.eu/OrganizationQuota"
+    pattern: "organizations/{organization}/quota"
+    plural: "organizationQuotas"
+    singular: "organizationQuota"
+  };
+
+  // The quota's resource name, `organizations/{organization}/quota`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The most instances that aren't terminated.
+  int64 max_instances = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The most vCPUs, summed over the instances that aren't terminated.
+  int64 max_vcpu = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The most GiB of volumes that aren't deleted.
+  int64 max_volume_gib = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The most VPCs.
+  int64 max_vpcs = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The most floating IPs.
+  int64 max_public_ips = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // How much of each limit the organization's projects use together.
+  QuotaUsage usage = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A project's quota: the budgets its owners set for it, and how much of each
+// the project uses. A project without a budget for a kind of resource is
+// bounded by its organization's quota alone; with one, by both. Budgets are
+// not reservations: several projects' budgets may add up to more than the
+// organization's limit.
+message ProjectQuota {
+  option (google.api.resource) = {
+    type: "resourcemanager.origincloudapis.eu/ProjectQuota"
+    pattern: "projects/{project}/quota"
+    plural: "projectQuotas"
+    singular: "projectQuota"
+  };
+
+  // The quota's resource name, `projects/{project}/quota`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The most instances that aren't terminated; unset means no budget. Each
+  // budget is zero or more, and no more than the organization's limit for
+  // the same kind.
+  optional int64 max_instances = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // The most vCPUs, summed over the instances that aren't terminated; unset
+  // means no budget.
+  optional int64 max_vcpu = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // The most GiB of volumes that aren't deleted; unset means no budget.
+  optional int64 max_volume_gib = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // The most VPCs; unset means no budget.
+  optional int64 max_vpcs = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // The most floating IPs; unset means no budget.
+  optional int64 max_public_ips = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // How much of each budget the project uses.
+  QuotaUsage usage = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// How many of each kind of resource are held. Counted continuously, so a
+// resource just created or deleted can take up to half a minute to show;
+// a limit is enforced on the exact count.
+message QuotaUsage {
+  // Instances that aren't terminated.
+  int64 instances = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // vCPUs of the instances that aren't terminated.
+  int64 vcpu = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // GiB of volumes that aren't deleted.
+  int64 volume_gib = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // VPCs.
+  int64 vpcs = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Floating IPs.
+  int64 public_ips = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
