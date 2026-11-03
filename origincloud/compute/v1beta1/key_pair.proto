@@ -33,7 +33,8 @@ service KeyPairService {
   // `ssh-ed25519` key and returns its private half in `private_key`, in
   // this response only. A repeat of a generating request with the same
   // `request_id` can't return the private key again, and is refused with
-  // `FAILED_PRECONDITION`: delete the key pair and create another.
+  // `CONFLICT`, its `ErrorInfo` metadata naming the key pair under
+  // `keyPair`: delete it and create another.
   rpc CreateKeyPair(CreateKeyPairRequest) returns (KeyPair) {
     option (google.api.http) = {
       post: "/v1beta1/{parent=projects/*}/keyPairs"
@@ -141,8 +142,11 @@ message CreateKeyPairRequest {
   // one, and optionally its tags.
   KeyPair key_pair = 2 [(google.api.field_behavior) = REQUIRED];
 
-  // A UUID; a repeat with the same id returns the first request's key pair
-  // instead of creating a second one.
+  // A UUID; a repeat with the same id creates no second key pair. A repeat
+  // importing a key returns the first request's key pair; a repeat
+  // generating one is refused with `CONFLICT`, as the private key went to
+  // the first request only, and the error's `ErrorInfo` metadata names the
+  // key pair under `keyPair`.
   string request_id = 3 [
     (google.api.field_info).format = UUID4,
     (google.api.field_behavior) = OPTIONAL
