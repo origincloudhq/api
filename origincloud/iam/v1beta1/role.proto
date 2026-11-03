@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package origincloud.iam.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+// The catalog of predefined roles. A role is a named set of permissions; a
+// role binding grants one to a principal in an organization or in one of
+// its projects. The same for every caller: any authenticated caller can
+// read it, and no permission is needed.
+service RoleService {
+  option (google.api.default_host) = "iam.origincloudapis.eu";
+
+  // Returns a role.
+  rpc GetRole(GetRoleRequest) returns (Role) {
+    option (google.api.http) = {get: "/v1beta1/{name=roles/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists every predefined role, in catalog order.
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse) {
+    option (google.api.http) = {get: "/v1beta1/roles"};
+  }
+}
+
+// A predefined role: a named set of permissions that a role binding grants.
+message Role {
+  option (google.api.resource) = {
+    type: "iam.origincloudapis.eu/Role"
+    pattern: "roles/{role}"
+    plural: "roles"
+    singular: "role"
+  };
+
+  // The role's resource name, such as `roles/owner`, `roles/viewer` or
+  // `roles/billing.administrator`. A role binding names its role by it.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The role's URN, the identifier access policies and the audit log use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The name the console shows, such as `Owner`.
+  string display_name = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What holding the role allows, in a sentence.
+  string description = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The permissions the role grants, `permissions/{permission}`, in
+  // catalog order.
+  repeated string included_permissions = 5 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "iam.origincloudapis.eu/Permission"
+  ];
+}
+
+// The request for GetRole.
+message GetRoleRequest {
+  // The role to return, `roles/{role}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "iam.origincloudapis.eu/Role"
+  ];
+}
+
+// The request for ListRoles. The catalog is small, so it comes in one page.
+//
+// (-- api-linter: core::0158::request-page-size-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few roles. --)
+// (-- api-linter: core::0158::request-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few roles. --)
+message ListRolesRequest {}
+
+// The response for ListRoles.
+//
+// (-- api-linter: core::0158::response-next-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog of a few roles. --)
+message ListRolesResponse {
+  // Every predefined role, in catalog order.
+  repeated Role roles = 1;
+}

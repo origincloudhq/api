@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package origincloud.iam.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+// The catalog of permissions, and which of them a caller holds. A
+// permission allows one action on one kind of resource, such as
+// `pvs.volume.create`; roles bundle them. Reading the catalog needs no
+// permission.
+service PermissionService {
+  option (google.api.default_host) = "iam.origincloudapis.eu";
+
+  // Returns a permission.
+  rpc GetPermission(GetPermissionRequest) returns (Permission) {
+    option (google.api.http) = {get: "/v1beta1/{name=permissions/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists every permission the platform checks, in catalog order,
+  // including those no predefined role grants by default, such as the
+  // billing account permissions.
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse) {
+    option (google.api.http) = {get: "/v1beta1/permissions"};
+  }
+
+  // Returns the subset of `permissions` the caller holds on an organization
+  // or a project. A permission held on the organization counts for each of
+  // its projects; one held on a project counts only there. Every resource
+  // in a project is governed by the project's permissions, so asking about
+  // the project answers for each of its resources. A permission the
+  // catalog doesn't name is never held.
+  rpc TestIamPermissions(TestIamPermissionsRequest) returns (TestIamPermissionsResponse) {
+    option (google.api.http) = {
+      post: "/v1beta1/{resource=*/*}:testIamPermissions"
+      body: "*"
+    };
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// One action on one kind of resource, which a role grants.
+message Permission {
+  option (google.api.resource) = {
+    type: "iam.origincloudapis.eu/Permission"
+    pattern: "permissions/{permission}"
+    plural: "permissions"
+    singular: "permission"
+  };
+
+  // The permission's resource name, `permissions/{service}.{resource}.{action}`,
+  // such as `permissions/pvs.volume.create`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The permission's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The service whose API checks it, such as `pvs`.
+  string service = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The kind of resource it applies to, such as `volume`.
+  string resource_type = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The action it allows, such as `create`.
+  string action = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetPermission.
+message GetPermissionRequest {
+  // The permission to return, `permissions/{permission}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "iam.origincloudapis.eu/Permission"
+  ];
+}
+
+// The request for ListPermissions. The catalog is bounded, so it comes in
+// one page.
+//
+// (-- api-linter: core::0158::request-page-size-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog. --)
+// (-- api-linter: core::0158::request-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog. --)
+message ListPermissionsRequest {}
+
+// The response for ListPermissions.
+//
+// (-- api-linter: core::0158::response-next-page-token-field=disabled
+//     aip.dev/not-precedent: a platform-bounded catalog. --)
+message ListPermissionsResponse {
+  // Every permission, in catalog order.
+  repeated Permission permissions = 1;
+}
+
+// The request for TestIamPermissions.
+message TestIamPermissionsRequest {
+  // The organization, `organizations/{organization}`, or the project,
+  // `projects/{project}`, to test the permissions on.
+  string resource = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The permissions to test, by their keys, such as `pvs.volume.create`;
+  // at most 100.
+  repeated string permissions = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The response for TestIamPermissions.
+message TestIamPermissionsResponse {
+  // The permissions of the request the caller holds on the resource, in the
+  // order they were asked for.
+  repeated string permissions = 1;
+}

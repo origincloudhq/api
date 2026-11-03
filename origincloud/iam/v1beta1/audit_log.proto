@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package origincloud.iam.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+
+// An organization's audit log: a record of each change to who may do what
+// in it, written when the change is made and never changed afterwards.
+// It records role bindings created and deleted, members removed, invites
+// created and deleted, and service accounts created and deleted.
+//
+// This API serves a recent window of the log, 90 days unless the platform
+// sets it longer: a list says where its window starts in
+// `window_start_time`, and an older entry is `NOT_FOUND` here.
+service AuditLogService {
+  option (google.api.default_host) = "iam.origincloudapis.eu";
+
+  // Returns an audit log entry. Needs `iam.audit_log.list` on the
+  // organization.
+  rpc GetAuditLogEntry(GetAuditLogEntryRequest) returns (AuditLogEntry) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/auditLogEntries/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists an organization's audit log entries, most recent first,
+  // optionally only a project's, an actor's or an action's. Needs
+  // `iam.audit_log.list` on the organization.
+  rpc ListAuditLogEntries(ListAuditLogEntriesRequest) returns (ListAuditLogEntriesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=organizations/*}/auditLogEntries"};
+    option (google.api.method_signature) = "parent";
+  }
+}
+
+// One recorded change.
+message AuditLogEntry {
+  option (google.api.resource) = {
+    type: "iam.origincloudapis.eu/AuditLogEntry"
+    pattern: "organizations/{organization}/auditLogEntries/{audit_log_entry}"
+    plural: "auditLogEntries"
+    singular: "auditLogEntry"
+  };
+
+  // Whether the change was made.
+  enum Outcome {
+    // Not set.
+    OUTCOME_UNSPECIFIED = 0;
+    // It was made.
+    SUCCEEDED = 1;
+    // It was refused for lack of a permission.
+    DENIED = 2;
+  }
+
+  // The entry's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The project the change was limited to, `projects/{project}`; empty for
+  // a change to the whole organization.
+  string project = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Who made the change, as it was when the change was made:
+  // `user:{email}` with the verified address the account had then,
+  // `userId:{user}` when none was recorded, `serviceAccount:{service_account}`,
+  // or `platform` for a change the platform made itself. A later change of
+  // address doesn't change it.
+  string actor = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What was done, as a permission key names it, such as
+  // `iam.role.assign`.
+  string action = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What it was done to, written as `actor` is, or the email address
+  // invited; empty when the action has no target.
+  string target = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether the change was made.
+  Outcome outcome = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the change was made.
+  google.protobuf.Timestamp occur_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Details of the change that depend on the action, such as the `role`
+  // granted or a service account's `display_name`.
+  map<string, string> details = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetAuditLogEntry.
+message GetAuditLogEntryRequest {
+  // The entry to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "iam.origincloudapis.eu/AuditLogEntry"
+  ];
+}
+
+// The request for ListAuditLogEntries.
+message ListAuditLogEntriesRequest {
+  // The organization whose audit log to list,
+  // `organizations/{organization}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "iam.origincloudapis.eu/AuditLogEntry"
+  ];
+
+  // Only the entries of changes limited to this project,
+  // `projects/{project}`. Every entry when empty.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a typed filter, in place of a filter string. --)
+  string project = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the entries of changes made by this member's account,
+  // `user:{email}` or `serviceAccount:{service_account}`. Every actor's
+  // when empty.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a typed filter, in place of a filter string. --)
+  string actor = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the entries of this action, such as `iam.role.assign`. Every
+  // action's when empty.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a typed filter, in place of a filter string. --)
+  string action = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // The most entries to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 6 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListAuditLogEntries.
+message ListAuditLogEntriesResponse {
+  // The entries on this page, most recent first.
+  repeated AuditLogEntry audit_log_entries = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+
+  // Where the window this API serves starts: entries older than it aren't
+  // listed.
+  //
+  // (-- api-linter: core::0132::response-unknown-fields=disabled
+  //     aip.dev/not-precedent: the served window of an append-only log. --)
+  google.protobuf.Timestamp window_start_time = 3;
+}

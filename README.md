@@ -13,6 +13,7 @@ these files.
 | `origincloud.resourcemanager.v1beta1` | Resource Manager: organizations, projects and their quotas | `resourcemanager.origincloudapis.eu` |
 | `origincloud.compute.v1beta1` | Compute: instances, images, key pairs, volume attachments and the instance catalog | `compute.origincloudapis.eu` |
 | `origincloud.network.v1beta1` | Networking: VPCs, subnets, routing, gateways, floating IPs, network interfaces, security groups, ACLs and DNS policies | `network.origincloudapis.eu` |
+| `origincloud.iam.v1beta1` | Identity and access: role bindings, service accounts, users, roles, permissions and the audit log | `iam.origincloudapis.eu` |
 
 ## Design
 

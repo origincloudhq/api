@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package origincloud.iam.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+// The signed-in user. Each user can read only their own profile, by the
+// name `users/me` or by their own id; the role bindings they hold are
+// listed by ListRoleBindings with the parent `organizations/-`.
+//
+// (-- api-linter: core::0121::resource-must-support-list=disabled
+//     aip.dev/not-precedent: a caller reads only their own profile. --)
+service UserService {
+  option (google.api.default_host) = "iam.origincloudapis.eu";
+
+  // Returns the caller's own profile. Any other user is `NOT_FOUND`; a
+  // service account caller is refused with `BAD_REQUEST`, having no
+  // profile.
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (google.api.http) = {get: "/v1beta1/{name=users/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// A person who signs in to the platform.
+message User {
+  option (google.api.resource) = {
+    type: "iam.origincloudapis.eu/User"
+    pattern: "users/{user}"
+    plural: "users"
+    singular: "user"
+  };
+
+  // The user's resource name, `users/{user}`, with their id; never
+  // `users/me`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // How a role binding shows the user: `user:{email}` once `email` is
+  // verified, `userId:{user}` until then.
+  string member = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The email address the user signs in with.
+  string email = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether the user has confirmed `email`.
+  bool email_verified = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The user's given name; empty when they haven't set one.
+  string given_name = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The user's family name; empty when they haven't set one.
+  string family_name = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetUser.
+message GetUserRequest {
+  // The user to return: `users/me`, or the caller's own `users/{user}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "iam.origincloudapis.eu/User"
+  ];
+}
