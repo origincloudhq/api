@@ -49,8 +49,8 @@ service SubnetService {
   }
 
   // Changes a subnet's public address assignment or tags.
-  // `auto_assign_public_ip` applies to instances launched afterwards. The
-  // operation is done once the change is recorded.
+  // `auto_assign_public_ip` applies to launches afterwards that create
+  // their interface. The operation is done once the change is recorded.
   rpc UpdateSubnet(UpdateSubnetRequest) returns (google.longrunning.Operation) {
     option (google.api.http) = {
       patch: "/v1beta1/{subnet.name=projects/*/zones/*/subnets/*}"
@@ -122,8 +122,12 @@ message Subnet {
     (google.api.resource_reference).type = "network.origincloudapis.eu/Acl"
   ];
 
-  // Whether an instance launched into the subnet gets a floating IP of
-  // its own, released when the instance is terminated.
+  // Whether a launch that creates its network interface in the subnet,
+  // as the GraphQL API's `launchInstance` does, gives that interface a
+  // floating IP of its own, released when the instance is terminated.
+  // `CreateInstance` takes existing interfaces, so an instance it launches
+  // gets none: create a floating IP and a floating IP association for its
+  // interface instead.
   bool auto_assign_public_ip = 6 [(google.api.field_behavior) = OPTIONAL];
 
   // The subnet's IPv4 range.

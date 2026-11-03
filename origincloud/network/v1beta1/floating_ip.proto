@@ -113,9 +113,9 @@ message FloatingIp {
     (google.api.field_behavior) = OUTPUT_ONLY
   ];
 
-  // Whether the platform assigned the address at launch, from a subnet
-  // with `auto_assign_public_ip`. Such an address is released when its
-  // instance is terminated.
+  // Whether the platform assigned the address at launch, to an interface
+  // the launch created in a subnet with `auto_assign_public_ip`. Such an
+  // address is released when its instance is terminated.
   bool auto_assigned = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // When the floating IP was created.
