@@ -277,12 +277,6 @@ message ProjectBillingInfo {
   // The billing info's resource name, `projects/{project}/billingInfo`.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The project, `projects/{project}`.
-  string project = 2 [
-    (google.api.field_behavior) = OUTPUT_ONLY,
-    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
-  ];
-
   // The billing account that pays for the project's usage, one of its
   // organization's.
   string billing_account = 3 [
