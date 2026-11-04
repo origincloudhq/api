@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-// Billing accounts, the projects they pay for, and the payment methods that
-// pay them.
+// Billing accounts and the projects they pay for, payment methods, cost and
+// usage, spend limits and the price list.
 //
 // A billing account is an organization's: it holds the profile invoices are
 // issued to and the payment method its usage is charged to. Every project is

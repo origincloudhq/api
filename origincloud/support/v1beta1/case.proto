@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-// Support cases: a conversation between an organization and Origin Cloud
-// support about a question or a problem.
+// Support cases, each a conversation between an organization and Origin
+// Cloud support about a question or a problem.
 //
 // A case belongs to an organization and may name one of its projects. Its
 // messages are the conversation, oldest first. Every notification about a

@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+// The metrics the platform collects for a project's compute instances,
+// volumes and network interfaces.
 package origincloud.observability.v1beta1;
 
 import "google/api/annotations.proto";
