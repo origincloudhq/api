@@ -14,6 +14,9 @@ these files.
 | `origincloud.compute.v1beta1` | Compute: instances, images, key pairs, volume attachments and the instance catalog | `compute.origincloudapis.eu` |
 | `origincloud.network.v1beta1` | Networking: VPCs, subnets, routing, gateways, floating IPs, network interfaces, security groups, ACLs and DNS policies | `network.origincloudapis.eu` |
 | `origincloud.iam.v1beta1` | Identity and access: role bindings, service accounts, users, roles, permissions and the audit log | `iam.origincloudapis.eu` |
+| `origincloud.billing.v1beta1` | Billing: billing accounts and their payment method, project billing, billing countries, cost, usage, spend limits and the price list | `billing.origincloudapis.eu` |
+| `origincloud.support.v1beta1` | Support: cases and their messages | `support.origincloudapis.eu` |
+| `origincloud.observability.v1beta1` | Observability: time series of a resource's metrics | `observability.origincloudapis.eu` |
 
 ## Design
 

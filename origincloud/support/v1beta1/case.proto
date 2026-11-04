@@ -1,0 +1,216 @@
+syntax = "proto3";
+
+// Support cases: a conversation between an organization and Origin Cloud
+// support about a question or a problem.
+//
+// A case belongs to an organization and may name one of its projects. Its
+// messages are the conversation, oldest first. Every notification about a
+// case goes to the contact email given when it was opened.
+package origincloud.support.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+
+// Support cases: an organization's questions and problems, and where each
+// one stands.
+service CaseService {
+  option (google.api.default_host) = "support.origincloudapis.eu";
+
+  // Returns a case. Needs `admin.support_case.get` on the organization.
+  rpc GetCase(GetCaseRequest) returns (Case) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/cases/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists an organization's cases, newest first. Needs
+  // `admin.support_case.list` on the organization.
+  rpc ListCases(ListCasesRequest) returns (ListCasesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=organizations/*}/cases"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Opens a case, `OPEN`. Needs `admin.support_case.create` on the
+  // organization.
+  rpc CreateCase(CreateCaseRequest) returns (Case) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=organizations/*}/cases"
+      body: "case"
+    };
+    option (google.api.method_signature) = "parent,case";
+  }
+
+  // Closes a case: its `state` becomes `CLOSED`, and its contact email is
+  // notified. Closing a closed case succeeds and changes nothing. Needs
+  // `admin.support_case.update` on the organization.
+  rpc CloseCase(CloseCaseRequest) returns (Case) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=organizations/*/cases/*}:close"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Opens a resolved or closed case again: its `state` becomes `OPEN`, and
+  // its contact email is notified. Reopening a case that is `OPEN` or
+  // `IN_PROGRESS` succeeds and changes nothing. Needs
+  // `admin.support_case.update` on the organization.
+  rpc ReopenCase(ReopenCaseRequest) returns (Case) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=organizations/*/cases/*}:reopen"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// A support case: one question or problem, and the conversation about it.
+message Case {
+  option (google.api.resource) = {
+    type: "support.origincloudapis.eu/Case"
+    pattern: "organizations/{organization}/cases/{case}"
+    plural: "cases"
+    singular: "case"
+  };
+
+  // Where the case stands.
+  enum State {
+    // Not set.
+    STATE_UNSPECIFIED = 0;
+    // Opened, or opened again, and waiting for support.
+    OPEN = 1;
+    // Support is working on it.
+    IN_PROGRESS = 2;
+    // Support considers it solved. Reopen it if it isn't.
+    RESOLVED = 3;
+    // Finished. Reopen it to continue the conversation.
+    CLOSED = 4;
+  }
+
+  // The case's resource name, `organizations/{organization}/cases/{case}`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The case's URN, the identifier access policies and the audit log use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The project the case is about, `projects/{project}`, one of the
+  // organization's. Unset means the case is about the organization as a
+  // whole.
+  optional string project = 3 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
+
+  // A one-line summary. Not empty.
+  string subject = 4 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // What the case is about, in full. Not empty.
+  string description = 5 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // The email address every notification about the case is sent to, for
+  // as long as the case exists: when support replies, and when its state
+  // changes.
+  string contact_email = 6 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // Where the case stands. Changed by support, and by `CloseCase` and
+  // `ReopenCase`.
+  State state = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that opened the case, such as `user:<id>` or
+  // `service_account:<id>`.
+  string creator = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the case was opened.
+  google.protobuf.Timestamp create_time = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the case last changed: a message added, or its state changed.
+  google.protobuf.Timestamp update_time = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetCase.
+message GetCaseRequest {
+  // The case to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "support.origincloudapis.eu/Case"
+  ];
+}
+
+// The request for ListCases.
+message ListCasesRequest {
+  // The organization whose cases to list, `organizations/{organization}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "support.origincloudapis.eu/Case"
+  ];
+
+  // The most cases to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListCases.
+message ListCasesResponse {
+  // The cases on this page.
+  repeated Case cases = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateCase.
+message CreateCaseRequest {
+  // The organization to open the case in, `organizations/{organization}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "support.origincloudapis.eu/Case"
+  ];
+
+  // The case to open: its `subject`, `description` and `contact_email`,
+  // and its `project` if it is about one.
+  //
+  // (-- api-linter: core::0140::reserved-words=disabled
+  //     aip.dev/not-precedent: AIP-133 names a create's resource field after the resource, and the generated clients reach it as a field, never as a bare identifier. --)
+  Case case = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the case the first request
+  // opened instead of opening a second one.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for CloseCase.
+message CloseCaseRequest {
+  // The case to close.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "support.origincloudapis.eu/Case"
+  ];
+}
+
+// The request for ReopenCase.
+message ReopenCaseRequest {
+  // The case to open again.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "support.origincloudapis.eu/Case"
+  ];
+}

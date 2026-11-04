@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package origincloud.billing.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/timestamp.proto";
+
+// The public price list: the list price of every billable product, for
+// anyone to read, websites included. It needs no access token.
+//
+// Unlike the rest of this API, its path has been `/v1/pricing` since before
+// the API was published, and its fields are written in snake case, as
+// websites read them.
+service PriceListService {
+  option (google.api.default_host) = "billing.origincloudapis.eu";
+
+  // Returns the prices in effect now. The answer carries an `ETag`; a
+  // request that sends it back in `If-None-Match` is answered
+  // `304 Not Modified`, without a body, while the list is unchanged.
+  //
+  // (-- api-linter: core::0131::http-uri-name=disabled
+  //     api-linter: core::0131::method-signature=disabled
+  //     aip.dev/not-precedent: the price list was published at this path before the API was specified. --)
+  rpc GetPriceList(GetPriceListRequest) returns (PriceList) {
+    option (google.api.http) = {get: "/v1/pricing"};
+  }
+}
+
+// The price list. Every amount is in EUR, before VAT, which depends on the
+// customer's country and is added on the invoice.
+//
+// (-- api-linter: core::0123::resource-annotation=disabled
+//     api-linter: core::0143::standardized-codes=disabled
+//     api-linter: core::0142::time-field-names=disabled
+//     aip.dev/not-precedent: one list for everyone, with no name to address it by, and the field names websites read since before the API was specified. --)
+message PriceList {
+  // Always `EUR`.
+  string currency = 1 [
+    json_name = "currency",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // Always true: every amount is net, before VAT.
+  bool amounts_exclude_vat = 2 [
+    json_name = "amounts_exclude_vat",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // When a list price was last set, changed, took effect or ended: what a
+  // "prices last updated" line shows. Unset only while nothing is priced.
+  google.protobuf.Timestamp last_changed = 3 [
+    json_name = "last_changed",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // One entry per product family with a price in effect, in the platform's
+  // catalog order: `compute_instance`, `network_floating_ip`,
+  // `network_nat_gateway`, `network_vpc_egress`, `network_vpc_ingress`,
+  // `network_vpc_internal`, `storage_volume`, `storage_snapshot`,
+  // `observability_custom_metric`, `observability_api_request`,
+  // `observability_ingested_sample`.
+  repeated PriceFamily families = 4 [
+    json_name = "families",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+}
+
+// One product family's prices.
+message PriceFamily {
+  // The family, such as `compute_instance`.
+  string family = 1 [
+    json_name = "family",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // The family's prices in effect, by product key, numbers compared as
+  // numbers: a class's instance types run from smallest to largest.
+  repeated Price prices = 2 [
+    json_name = "prices",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+}
+
+// The list price of one product.
+//
+// (-- api-linter: core::0140::prepositions=disabled
+//     api-linter: core::0141::forbidden-types=disabled
+//     api-linter: core::0142::time-field-names=disabled
+//     aip.dev/not-precedent: the field names and types websites read since before the API was specified. --)
+message Price {
+  // The product the price bills, as usage and cost reports name it, such
+  // as `compute.gp1.core.2`, `storage.gp1` or `network.vpc_egress`.
+  string product_key = 1 [
+    json_name = "product_key",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // The parts of the product key, split out: `instance_type` for an instance,
+  // `storage_class` for a volume. Empty for a product that has none.
+  map<string, string> dimensions = 2 [
+    json_name = "dimensions",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // What is counted: `seconds`, `gib_hours`, `gb` (decimal, 10^9 bytes),
+  // `metric_months`, `requests` or `samples`.
+  string unit_type = 3 [
+    json_name = "unit_type",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // How many of the unit the amount pays for: `3600` seconds is an
+  // hourly rate, `1000` requests a rate per thousand.
+  uint32 unit_count = 4 [
+    json_name = "unit_count",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // The price of that many units, as a decimal string.
+  string amount = 5 [
+    json_name = "amount",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // When the price took effect.
+  google.protobuf.Timestamp valid_from = 6 [
+    json_name = "valid_from",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+
+  // When the price is to end; unset while no end is scheduled.
+  google.protobuf.Timestamp valid_until = 7 [
+    json_name = "valid_until",
+    (google.api.field_behavior) = OUTPUT_ONLY
+  ];
+}
+
+// The request for GetPriceList, which takes nothing.
+//
+// (-- api-linter: core::0131::request-name-required=disabled
+//     aip.dev/not-precedent: one list for everyone, with no name to address it by. --)
+message GetPriceListRequest {}

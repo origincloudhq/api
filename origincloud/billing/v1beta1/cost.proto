@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+package origincloud.billing.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+
+// Usage and cost: what a project, an organization or a billing account used
+// in a period, and what it costs, as read-only reports.
+//
+// Usage is metered per resource and priced when it is recorded, at the
+// price list's rate then, so a later price change never changes a past
+// cost. A running resource's usage is recorded at least hourly; the last
+// hour can still be missing from a report.
+service CostService {
+  option (google.api.default_host) = "billing.origincloudapis.eu";
+
+  // Returns a project's cost in a period, by service and product, in hourly
+  // or daily buckets. Needs `admin.usage.list` on the organization.
+  //
+  // (-- api-linter: core::0136::http-uri-suffix=disabled
+  //     api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: one report verb on several resources, each method named for its resource; the reports share their shape. --)
+  rpc QueryProjectCost(QueryProjectCostRequest) returns (CostReport) {
+    option (google.api.http) = {get: "/v1beta1/{project=projects/*}:queryCost"};
+    option (google.api.method_signature) = "project,start_time,end_time";
+  }
+
+  // Returns an organization's cost in a period: every project's together,
+  // by service and product, and each project's on its own. Needs
+  // `admin.usage.list` on the organization, which reads every project's
+  // cost in it.
+  //
+  // (-- api-linter: core::0136::http-uri-suffix=disabled
+  //     api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: one report verb on several resources, each method named for its resource; the reports share their shape. --)
+  rpc QueryOrganizationCost(QueryOrganizationCostRequest) returns (OrganizationCostReport) {
+    option (google.api.http) = {get: "/v1beta1/{organization=organizations/*}:queryCost"};
+    option (google.api.method_signature) = "organization,start_time,end_time";
+  }
+
+  // Returns what was charged to a billing account in a period, by service
+  // and product. A project's cost is charged to the account it was linked
+  // to when the usage was recorded, so moving a project moves only its
+  // later cost. Its spend limit compares the calendar month's total with
+  // `limit`. Needs `admin.spend_limit.get` on the organization.
+  //
+  // (-- api-linter: core::0136::http-uri-suffix=disabled
+  //     api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: one report verb on several resources, each method named for its resource; the reports share their shape. --)
+  rpc QueryBillingAccountCost(QueryBillingAccountCostRequest) returns (CostReport) {
+    option (google.api.http) = {get: "/v1beta1/{billing_account=organizations/*/billingAccounts/*}:queryCost"};
+    option (google.api.method_signature) = "billing_account,start_time,end_time";
+  }
+
+  // Lists a project's metered usage records that overlap a period, the
+  // input its cost is priced from, oldest first. Needs `admin.usage.list`
+  // on the organization.
+  //
+  // (-- api-linter: core::0136::http-uri-suffix=disabled
+  //     aip.dev/not-precedent: named for its resource, as the cost reports are. --)
+  rpc QueryProjectUsage(QueryProjectUsageRequest) returns (QueryProjectUsageResponse) {
+    option (google.api.http) = {get: "/v1beta1/{project=projects/*}:queryUsage"};
+    option (google.api.method_signature) = "project,start_time,end_time";
+  }
+}
+
+// A cost report: the period's total, by service and, within a service, by
+// product. Every amount is in EUR, before VAT, as a decimal string.
+message CostReport {
+  // The period's total.
+  string total = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Each service with any cost in the period, such as `compute`, in name
+  // order.
+  repeated ServiceCost services = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// One service's cost in a report.
+message ServiceCost {
+  // The service, the first segment of its products' keys, such as
+  // `compute`.
+  string service = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The service's total.
+  string total = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Each of the service's products with any cost in the period, in key
+  // order.
+  repeated ProductCost products = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// One product's cost in a report.
+message ProductCost {
+  // The product as the price list names it, such as `compute.gp1.core.2`.
+  string product_key = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The product's total.
+  string total = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The buckets with any cost, oldest first.
+  repeated CostBucket buckets = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The cost of one hour or one day.
+message CostBucket {
+  // When the bucket starts.
+  google.protobuf.Timestamp start_time = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The bucket's cost.
+  string amount = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// An organization's cost report: its projects' together, and each
+// project's.
+message OrganizationCostReport {
+  // The period's total of every project.
+  string total = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Each service with any cost in the period, over every project.
+  repeated ServiceCost services = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Each project with any cost in the period, in id order, a project
+  // deleted since included.
+  repeated ProjectCost projects = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// One project's cost in an organization's report, over every service.
+message ProjectCost {
+  // The project, `projects/{project}`.
+  string project = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
+
+  // The project's total.
+  string total = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The buckets with any cost, oldest first.
+  repeated CostBucket buckets = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// One metered interval of one resource: how much of a metric it used from
+// `start_time` to `end_time`.
+message UsageRecord {
+  // The kind of resource, such as `compute.instance`.
+  string resource_kind = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The resource's id.
+  string resource_id = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What was measured, such as `running_seconds`.
+  string metric = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The product the usage is priced as, such as `compute.gp1.core.2`;
+  // empty for a kind of resource that has none.
+  string product_key = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // How much was used, in the metric's unit, as a decimal string.
+  string quantity = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the interval starts.
+  google.protobuf.Timestamp start_time = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the interval ends.
+  google.protobuf.Timestamp end_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The billing account the usage was charged to, the one the project was
+  // linked to when it was recorded; empty if it had none.
+  string billing_account = 8 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+}
+
+// The request for QueryProjectCost.
+message QueryProjectCostRequest {
+  // The project, `projects/{project}`.
+  string project = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
+
+  // The period's start, included.
+  google.protobuf.Timestamp start_time = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The period's end, left out; after `start_time`.
+  google.protobuf.Timestamp end_time = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // How finely to bucket the cost; daily when unset.
+  Granularity granularity = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for QueryOrganizationCost.
+message QueryOrganizationCostRequest {
+  // The organization, `organizations/{organization}`.
+  string organization = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Organization"
+  ];
+
+  // The period's start, included.
+  google.protobuf.Timestamp start_time = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The period's end, left out; after `start_time`.
+  google.protobuf.Timestamp end_time = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // How finely to bucket the cost; daily when unset.
+  Granularity granularity = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for QueryBillingAccountCost.
+message QueryBillingAccountCostRequest {
+  // The billing account.
+  string billing_account = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+
+  // The period's start, included.
+  google.protobuf.Timestamp start_time = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The period's end, left out; after `start_time`.
+  google.protobuf.Timestamp end_time = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // How finely to bucket the cost; daily when unset.
+  Granularity granularity = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for QueryProjectUsage.
+message QueryProjectUsageRequest {
+  // The project, `projects/{project}`.
+  string project = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
+
+  // The period's start: records that end after it are listed.
+  google.protobuf.Timestamp start_time = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The period's end: records that start before it are listed; after
+  // `start_time`.
+  google.protobuf.Timestamp end_time = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // The most records to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 5 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for QueryProjectUsage.
+message QueryProjectUsageResponse {
+  // The usage records on this page.
+  repeated UsageRecord usage_records = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// How finely a report's cost is bucketed.
+enum Granularity {
+  // Not set: daily.
+  GRANULARITY_UNSPECIFIED = 0;
+
+  // One bucket per hour, starting on the hour.
+  HOURLY = 1;
+
+  // One bucket per day, starting at midnight UTC.
+  DAILY = 2;
+}

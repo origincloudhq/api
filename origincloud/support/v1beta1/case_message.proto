@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package origincloud.support.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+
+// A case's messages: its conversation between the organization and
+// support, oldest first. A message is never changed or removed once added.
+service CaseMessageService {
+  option (google.api.default_host) = "support.origincloudapis.eu";
+
+  // Returns one message of a case. Needs `admin.support_case.get` on the
+  // organization.
+  rpc GetCaseMessage(GetCaseMessageRequest) returns (CaseMessage) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/cases/*/messages/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a case's messages, oldest first. Needs `admin.support_case.get`
+  // on the organization.
+  rpc ListCaseMessages(ListCaseMessagesRequest) returns (ListCaseMessagesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=organizations/*/cases/*}/messages"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Adds a message to a case's conversation. The case's contact email is
+  // notified unless the message's author opened the case, so nobody is
+  // emailed their own messages. Needs `admin.support_case.create` on the
+  // organization.
+  rpc CreateCaseMessage(CreateCaseMessageRequest) returns (CaseMessage) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=organizations/*/cases/*}/messages"
+      body: "case_message"
+    };
+    option (google.api.method_signature) = "parent,case_message";
+  }
+}
+
+// One message of a case's conversation.
+message CaseMessage {
+  option (google.api.resource) = {
+    type: "support.origincloudapis.eu/CaseMessage"
+    pattern: "organizations/{organization}/cases/{case}/messages/{message}"
+    plural: "caseMessages"
+    singular: "caseMessage"
+  };
+
+  // The message's resource name,
+  // `organizations/{organization}/cases/{case}/messages/{message}`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The message's text. Not empty.
+  string body = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // The principal that wrote the message, such as `user:<id>` or
+  // `service_account:<id>`.
+  string author = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the message was added.
+  google.protobuf.Timestamp create_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetCaseMessage.
+message GetCaseMessageRequest {
+  // The message to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "support.origincloudapis.eu/CaseMessage"
+  ];
+}
+
+// The request for ListCaseMessages.
+message ListCaseMessagesRequest {
+  // The case whose messages to list,
+  // `organizations/{organization}/cases/{case}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "support.origincloudapis.eu/CaseMessage"
+  ];
+
+  // The most messages to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListCaseMessages.
+message ListCaseMessagesResponse {
+  // The messages on this page.
+  repeated CaseMessage case_messages = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateCaseMessage.
+message CreateCaseMessageRequest {
+  // The case to add the message to,
+  // `organizations/{organization}/cases/{case}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "support.origincloudapis.eu/CaseMessage"
+  ];
+
+  // The message to add: its `body`.
+  CaseMessage case_message = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the message the first
+  // request added instead of adding a second one.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

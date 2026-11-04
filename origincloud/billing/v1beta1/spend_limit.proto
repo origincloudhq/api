@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package origincloud.billing.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// Spend limits: an amount per calendar month for a billing account, and the
+// shares of it at which an alert is emailed. A spend limit only alerts: it
+// never stops or refuses anything.
+//
+// Access to spend limits is granted apart from access to billing accounts:
+// an organization's owner holds it by default.
+service SpendLimitService {
+  option (google.api.default_host) = "billing.origincloudapis.eu";
+
+  // Returns a billing account's spend limit; one that has none has no
+  // `limit`. Needs `admin.spend_limit.get` on the organization.
+  rpc GetSpendLimit(GetSpendLimitRequest) returns (SpendLimit) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/billingAccounts/*/spendLimit}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Sets or removes a billing account's spend limit. The fields named in
+  // `update_mask` are replaced and the others kept. A spend limit left
+  // without a `limit` is removed, with its thresholds and recipients. Needs
+  // `admin.spend_limit.update` on the organization.
+  rpc UpdateSpendLimit(UpdateSpendLimitRequest) returns (SpendLimit) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{spend_limit.name=organizations/*/billingAccounts/*/spendLimit}"
+      body: "spend_limit"
+    };
+    option (google.api.method_signature) = "spend_limit,update_mask";
+  }
+}
+
+// A billing account's spend limit: the most it means to spend in a calendar
+// month, and when to be told. Each threshold alerts once a month, the first
+// time the month's spend crosses it.
+message SpendLimit {
+  option (google.api.resource) = {
+    type: "billing.origincloudapis.eu/SpendLimit"
+    pattern: "organizations/{organization}/billingAccounts/{billing_account}/spendLimit"
+    plural: "spendLimits"
+    singular: "spendLimit"
+  };
+
+  // The spend limit's resource name,
+  // `organizations/{organization}/billingAccounts/{billing_account}/spendLimit`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The amount per calendar month in EUR, before VAT, as a decimal string
+  // such as `500.00`; more than zero. Unset means no spend limit.
+  optional string limit = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // The percentages of `limit` whose crossing emails an alert, such as `80`
+  // and `100`; each from 1 to 32767, so a threshold can lie beyond the
+  // limit. Empty while there is no `limit`.
+  repeated int32 alert_thresholds_percent = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Where alerts are sent. Empty while there is no `limit`, and an alert
+  // with no recipient is sent to nobody.
+  repeated string notification_emails = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // When the spend limit was last set; unset while there is none.
+  google.protobuf.Timestamp update_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetSpendLimit.
+message GetSpendLimitRequest {
+  // The spend limit to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/SpendLimit"
+  ];
+}
+
+// The request for UpdateSpendLimit.
+message UpdateSpendLimitRequest {
+  // The spend limit, by its name, with the fields to change.
+  SpendLimit spend_limit = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `limit`, `alert_thresholds_percent` and
+  // `notification_emails`. `*` is every one of them.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}

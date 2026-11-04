@@ -1,0 +1,503 @@
+syntax = "proto3";
+
+// Billing accounts, the projects they pay for, and the payment methods that
+// pay them.
+//
+// A billing account is an organization's: it holds the profile invoices are
+// issued to and the payment method its usage is charged to. Every project is
+// linked to exactly one of its organization's billing accounts, and its usage
+// is charged there. An organization starts with one, its default account.
+//
+// Access to billing accounts is granted separately from access to projects:
+// an organization's owner doesn't hold it by default. Only an organization's
+// creator, and whoever is granted a billing role, can read and change its
+// billing accounts.
+package origincloud.billing.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// Billing accounts, which project each one pays for, and how they are paid.
+service BillingAccountService {
+  option (google.api.default_host) = "billing.origincloudapis.eu";
+
+  // Returns a billing account. Needs `admin.billing_account.get` on the
+  // organization.
+  rpc GetBillingAccount(GetBillingAccountRequest) returns (BillingAccount) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/billingAccounts/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists an organization's billing accounts, oldest first. Needs
+  // `admin.billing_account.list` on the organization.
+  rpc ListBillingAccounts(ListBillingAccountsRequest) returns (ListBillingAccountsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=organizations/*}/billingAccounts"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a billing account with its profile: `display_name`,
+  // `billing_address`, `invoice_email` and `contact_person` are required,
+  // and `vat_id` too for a billing address outside Germany. The account
+  // has no payment method yet: until one is verified, the projects linked
+  // to it can't create billable resources. Creating it grants nobody a
+  // role: whoever can create billing accounts can use it. Needs
+  // `admin.billing_account.create` on the organization.
+  rpc CreateBillingAccount(CreateBillingAccountRequest) returns (BillingAccount) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=organizations/*}/billingAccounts"
+      body: "billing_account"
+    };
+    option (google.api.method_signature) = "parent,billing_account";
+  }
+
+  // Changes a billing account's `display_name` or its profile. The profile
+  // fields named in `update_mask` are replaced and the others kept; once
+  // the update is applied, the account must have a whole profile
+  // (`billing_address`, `invoice_email`, `contact_person`, and `vat_id`
+  // for a billing address outside Germany), or the update is refused. Needs
+  // `admin.billing_account.update` on the organization.
+  rpc UpdateBillingAccount(UpdateBillingAccountRequest) returns (BillingAccount) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{billing_account.name=organizations/*/billingAccounts/*}"
+      body: "billing_account"
+    };
+    option (google.api.method_signature) = "billing_account,update_mask";
+  }
+
+  // Deletes a billing account. Refused as a `CONFLICT` for the
+  // organization's default billing account, while a project is linked to
+  // the account (link it to another account first), and while the account
+  // has a spend limit (remove it first). Needs
+  // `admin.billing_account.delete` on the organization.
+  rpc DeleteBillingAccount(DeleteBillingAccountRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1beta1/{name=organizations/*/billingAccounts/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Starts adding a payment method to a billing account, and returns the
+  // payment provider's page to open in a browser: the payment details are
+  // entered there and never pass through this API. Once that page is done,
+  // call ConfirmPaymentMethodSetup. Starting again replaces a setup that
+  // wasn't confirmed. Refused as `INVALID_ARGUMENT` for an account whose
+  // `payment_method.state` is `NOT_REQUIRED`. Needs
+  // `admin.billing_account.update` on the organization.
+  rpc StartPaymentMethodSetup(StartPaymentMethodSetupRequest) returns (StartPaymentMethodSetupResponse) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=organizations/*/billingAccounts/*}:startPaymentMethodSetup"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Completes the setup StartPaymentMethodSetup started, once its page is
+  // done: the payment provider is asked whether it finished, and only a
+  // finished setup is recorded. The account's `payment_method` is then
+  // `VERIFIED`, replacing any earlier one, and its projects can create
+  // billable resources. An unfinished or abandoned setup is refused as
+  // `INVALID_ARGUMENT` and changes nothing: finish the page, or start
+  // again. So is an account with no setup started, which includes a
+  // repeat of a confirmation that succeeded: read the account to see
+  // whether it did. Needs `admin.billing_account.update` on the
+  // organization.
+  rpc ConfirmPaymentMethodSetup(ConfirmPaymentMethodSetupRequest) returns (BillingAccount) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=organizations/*/billingAccounts/*}:confirmPaymentMethodSetup"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Returns which billing account pays for a project. Needs
+  // `admin.project.get` on the project.
+  rpc GetProjectBillingInfo(GetProjectBillingInfoRequest) returns (ProjectBillingInfo) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/billingInfo}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Links a project to another billing account of its organization, which
+  // pays for its usage from then on; what it used before stays charged to
+  // the account it was linked to then. A project is always linked to one
+  // account, so there is nothing to unlink. Needs `admin.project.attach`
+  // on the project, which is separate from access to billing accounts.
+  rpc UpdateProjectBillingInfo(UpdateProjectBillingInfoRequest) returns (ProjectBillingInfo) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{project_billing_info.name=projects/*/billingInfo}"
+      body: "project_billing_info"
+    };
+    option (google.api.method_signature) = "project_billing_info,update_mask";
+  }
+
+  // Lists the projects a billing account pays for, oldest first. Needs
+  // `admin.billing_account.get` on the organization.
+  //
+  // (-- api-linter: core::0132::method-signature=disabled
+  //     api-linter: core::0132::http-uri-parent=disabled
+  //     aip.dev/not-precedent: a project's billing info belongs to the project, and this lists it by the billing account that pays. --)
+  rpc ListProjectBillingInfo(ListProjectBillingInfoRequest) returns (ListProjectBillingInfoResponse) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/billingAccounts/*}/projects"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Returns a country a billing address may be in.
+  rpc GetBillingCountry(GetBillingCountryRequest) returns (BillingCountry) {
+    option (google.api.http) = {get: "/v1beta1/{name=billingCountries/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists the countries a billing address may be in, in the order a form
+  // shows them, and whether each needs a VAT id.
+  rpc ListBillingCountries(ListBillingCountriesRequest) returns (ListBillingCountriesResponse) {
+    option (google.api.http) = {get: "/v1beta1/billingCountries"};
+  }
+}
+
+// An organization's billing account: who invoices are issued to, and how
+// its projects' usage is paid.
+//
+// (-- api-linter: core::0122::name-suffix=disabled
+//     aip.dev/not-precedent: display_name is carried as on organizations and projects. --)
+message BillingAccount {
+  option (google.api.resource) = {
+    type: "billing.origincloudapis.eu/BillingAccount"
+    pattern: "organizations/{organization}/billingAccounts/{billing_account}"
+    plural: "billingAccounts"
+    singular: "billingAccount"
+  };
+
+  // The billing account's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The billing account's URN, the identifier access policies and the audit
+  // log use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The name the console and spend-limit alerts show. Not empty. An
+  // organization's default account is called `default` until it is
+  // renamed.
+  string display_name = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Whether this is the organization's default billing account: the one
+  // its new projects are linked to. Every organization has exactly one,
+  // and it can't be deleted.
+  bool default_account = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The postal address invoices are issued to. Required to create an
+  // account; unset only on an organization's default account until its
+  // profile is set.
+  BillingAddress billing_address = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Where invoices are sent. Required to create an account; empty only on
+  // an organization's default account until its profile is set.
+  string invoice_email = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // The VAT identification number invoices name; empty for none. Required
+  // for a billing address outside Germany.
+  string vat_id = 7 [(google.api.field_behavior) = OPTIONAL];
+
+  // Who invoices are addressed to. Required to create an account; empty
+  // only on an organization's default account until its profile is set.
+  string contact_person = 8 [(google.api.field_behavior) = OPTIONAL];
+
+  // How the account is paid.
+  PaymentMethod payment_method = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the billing account was created.
+  google.protobuf.Timestamp create_time = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the billing account, such as `user:<id>` or
+  // `service_account:<id>`.
+  string creator = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A postal address invoices are issued to. Every field is required.
+message BillingAddress {
+  // The street and house number.
+  string street = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The city.
+  string city = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The postal code.
+  string postal_code = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // The country, as the ISO 3166-1 alpha-2 code of one of the countries
+  // ListBillingCountries lists, such as `DE`.
+  string region_code = 4 [(google.api.field_behavior) = REQUIRED];
+}
+
+// How a billing account is paid. Only the payment method's kind and the
+// last digits of a card are shown; the payment details themselves stay
+// with the payment provider.
+message PaymentMethod {
+  // Whether the account can pay for usage.
+  enum State {
+    // Not set.
+    STATE_UNSPECIFIED = 0;
+
+    // No verified payment method: the projects linked to the account can't
+    // create billable resources until one is added with
+    // StartPaymentMethodSetup and ConfirmPaymentMethodSetup.
+    MISSING = 1;
+
+    // A payment method is verified, and billable resources can be created.
+    VERIFIED = 2;
+
+    // The account is invoiced by arrangement with the platform's operator:
+    // it needs no payment method, and the setup methods are refused.
+    NOT_REQUIRED = 3;
+  }
+
+  // Whether the account can pay for usage.
+  State state = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The verified card's brand, such as `visa`; empty while no payment
+  // method is verified, and for one that isn't a card.
+  string card_brand = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The verified card's last four digits; empty while no payment method is
+  // verified, and for one that isn't a card.
+  string card_last4 = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// Which billing account pays for a project.
+message ProjectBillingInfo {
+  option (google.api.resource) = {
+    type: "billing.origincloudapis.eu/ProjectBillingInfo"
+    pattern: "projects/{project}/billingInfo"
+    plural: "projectBillingInfos"
+    singular: "projectBillingInfo"
+  };
+
+  // The billing info's resource name, `projects/{project}/billingInfo`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The project, `projects/{project}`.
+  string project = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
+
+  // The billing account that pays for the project's usage, one of its
+  // organization's.
+  string billing_account = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+}
+
+// A country a billing address may be in.
+//
+// (-- api-linter: core::0122::name-suffix=disabled
+//     aip.dev/not-precedent: display_name is carried as on catalog resources. --)
+message BillingCountry {
+  option (google.api.resource) = {
+    type: "billing.origincloudapis.eu/BillingCountry"
+    pattern: "billingCountries/{billing_country}"
+    plural: "billingCountries"
+    singular: "billingCountry"
+  };
+
+  // The country's resource name, `billingCountries/{code}`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The ISO 3166-1 alpha-2 code a billing address names it by, such as
+  // `DE`.
+  string region_code = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The country's name in English.
+  string display_name = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether a billing account with an address in this country needs a
+  // `vat_id`. Customers in every country but Germany are invoiced without
+  // VAT, as businesses under the reverse-charge rule, which needs one.
+  bool vat_id_required = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetBillingAccount.
+message GetBillingAccountRequest {
+  // The billing account to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+}
+
+// The request for ListBillingAccounts.
+message ListBillingAccountsRequest {
+  // The organization whose billing accounts to list,
+  // `organizations/{organization}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+
+  // The most billing accounts to return; the server clamps it, and 0 means
+  // its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListBillingAccounts.
+message ListBillingAccountsResponse {
+  // The billing accounts on this page.
+  repeated BillingAccount billing_accounts = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateBillingAccount.
+message CreateBillingAccountRequest {
+  // The organization to create the billing account in,
+  // `organizations/{organization}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+
+  // The billing account to create: its `display_name` and profile.
+  BillingAccount billing_account = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the billing account the first
+  // request created instead of creating a second one.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateBillingAccount.
+message UpdateBillingAccountRequest {
+  // The billing account, by its name, with the fields to change.
+  BillingAccount billing_account = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `display_name`, `billing_address`,
+  // `invoice_email`, `vat_id` and `contact_person`. `*` is every one of
+  // them.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for DeleteBillingAccount.
+//
+// (-- api-linter: core::0135::force-field=disabled
+//     aip.dev/not-precedent: what a delete is refused for is linked elsewhere and never deleted with it, so there is nothing to force. --)
+message DeleteBillingAccountRequest {
+  // The billing account to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+}
+
+// The request for StartPaymentMethodSetup.
+message StartPaymentMethodSetupRequest {
+  // The billing account to add a payment method to.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+}
+
+// The response for StartPaymentMethodSetup.
+message StartPaymentMethodSetupResponse {
+  // The payment provider's page to open in a browser, where the payment
+  // details are entered. It returns to the console when done.
+  string redirect_uri = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for ConfirmPaymentMethodSetup.
+message ConfirmPaymentMethodSetupRequest {
+  // The billing account whose setup to complete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+}
+
+// The request for GetProjectBillingInfo.
+message GetProjectBillingInfoRequest {
+  // The billing info to return, `projects/{project}/billingInfo`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/ProjectBillingInfo"
+  ];
+}
+
+// The request for UpdateProjectBillingInfo.
+message UpdateProjectBillingInfoRequest {
+  // The billing info, by its name, with the billing account to link.
+  ProjectBillingInfo project_billing_info = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `billing_account`. `*` is the same.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for ListProjectBillingInfo.
+//
+// (-- api-linter: core::0132::request-parent-required=disabled
+//     api-linter: core::0132::request-required-fields=disabled
+//     api-linter: core::0132::request-unknown-fields=disabled
+//     aip.dev/not-precedent: the billing account narrowing the list isn't the projects' parent. --)
+message ListProjectBillingInfoRequest {
+  // The billing account whose projects to list.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+
+  // The most projects to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListProjectBillingInfo.
+//
+// (-- api-linter: core::0132::response-unknown-fields=disabled
+//     aip.dev/not-precedent: it lists billing info by the billing account that pays, as ListProjectBillingInfo does. --)
+message ListProjectBillingInfoResponse {
+  // The billing info of each project on this page.
+  repeated ProjectBillingInfo project_billing_infos = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for GetBillingCountry.
+message GetBillingCountryRequest {
+  // The country to return, `billingCountries/{code}`, such as
+  // `billingCountries/DE`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingCountry"
+  ];
+}
+
+// The request for ListBillingCountries.
+message ListBillingCountriesRequest {
+  // The most countries to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListBillingCountries.
+message ListBillingCountriesResponse {
+  // The countries on this page.
+  repeated BillingCountry billing_countries = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
