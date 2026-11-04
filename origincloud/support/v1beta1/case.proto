@@ -97,9 +97,8 @@ message Case {
   string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // The project the case is about, `projects/{project}`, one of the
-  // organization's. Unset means the case is about the organization as a
-  // whole.
-  optional string project = 3 [
+  // organization's. Empty for a case about the organization as a whole.
+  string project = 3 [
     (google.api.field_behavior) = OPTIONAL,
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
