@@ -48,8 +48,10 @@ service FloatingIpAssociationService {
   }
 
   // Removes a floating IP's association: the address reaches nothing, and
-  // stays allocated. The operation is done once the change is recorded; the
-  // network applies it within seconds.
+  // stays allocated. Refused for an address the platform assigned at
+  // launch (`auto_assigned`), which is released with its network interface.
+  // The operation is done once the change is recorded; the network applies
+  // it within seconds.
   rpc DeleteFloatingIpAssociation(DeleteFloatingIpAssociationRequest) returns (google.longrunning.Operation) {
     option (google.api.http) = {delete: "/v1beta1/{name=projects/*/zones/*/floatingIps/*/associations/*}"};
     option (google.api.method_signature) = "name";
