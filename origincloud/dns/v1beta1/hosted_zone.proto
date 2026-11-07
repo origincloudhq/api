@@ -1,0 +1,355 @@
+syntax = "proto3";
+
+// Hosted zones, their record sets, and private zones' VPC attachments.
+//
+// A hosted zone is a domain the platform answers for. A public zone answers
+// on the internet, from the platform's name servers, once it has proved
+// control of its name and is delegated to them. A private zone answers only
+// inside the VPCs it is attached to. A record set is every record of one
+// name and type in a zone: a list of values, or an alias that follows a
+// platform resource's address.
+//
+// Zones are global: they belong to a project and to no region. A change is
+// recorded when its method answers. A public zone's records are answered
+// on the internet once the platform's public name servers serve the zone,
+// and a private zone's in a VPC once the VPC's hosts serve it.
+package origincloud.dns.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// Hosted zones: the domains a project's records are answered for.
+//
+// A public zone holds its name only once it proves control of it: until
+// then it is `PENDING_VERIFICATION`, and any number of zones of any
+// project may be pending for the same name. It proves control with a TXT
+// record at `_origin-challenge.{dns_name}` holding the zone's token,
+// answered by the name's current DNS. The first zone of a name to verify
+// becomes `ACTIVE`, holds the name, and is answered from the platform's
+// name servers once the name is delegated to them; the others stay
+// pending. A zone that doesn't verify within its window is deleted with
+// its record sets. The platform checks pending zones on its own, more
+// rarely the longer they stay pending; `VerifyHostedZone` checks one now.
+//
+// An active public zone is checked again every day. It keeps its name
+// while the name is delegated to the platform's name servers, or while the
+// token still answers at the name's other name servers. After several
+// checks in a row find the name delegated elsewhere without the token, it
+// is `SUSPENDED`: no longer answered, its record sets kept, and its name
+// free for another zone to verify. Verifying it again while its name is
+// free makes it active again.
+//
+// A private zone is active from the start, and answers in the VPCs it is
+// attached to.
+service HostedZoneService {
+  option (google.api.default_host) = "dns.origincloudapis.eu";
+
+  // Returns a hosted zone.
+  rpc GetHostedZone(GetHostedZoneRequest) returns (HostedZone) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/hostedZones/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a project's hosted zones, oldest first.
+  rpc ListHostedZones(ListHostedZonesRequest) returns (ListHostedZonesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*}/hostedZones"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a hosted zone, empty. A public zone starts
+  // `PENDING_VERIFICATION`, with the token to publish in `challenge`; a
+  // private zone starts `ACTIVE`. Refused with `BAD_REQUEST` for a name the
+  // platform keeps for itself, or once the project's or organization's
+  // quota of zones is used up, and with `PAYMENT_METHOD_REQUIRED` while the
+  // project has no valid billing.
+  rpc CreateHostedZone(CreateHostedZoneRequest) returns (HostedZone) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*}/hostedZones"
+      body: "hosted_zone"
+    };
+    option (google.api.method_signature) = "parent,hosted_zone";
+  }
+
+  // Changes a hosted zone's tags.
+  rpc UpdateHostedZone(UpdateHostedZoneRequest) returns (HostedZone) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{hosted_zone.name=projects/*/hostedZones/*}"
+      body: "hosted_zone"
+    };
+    option (google.api.method_signature) = "hosted_zone,update_mask";
+  }
+
+  // Deletes a hosted zone. Refused with `CONFLICT` while it holds record
+  // sets or, for a private zone, VPC attachments: delete them first.
+  rpc DeleteHostedZone(DeleteHostedZoneRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/hostedZones/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Checks a public zone's challenge now, instead of waiting for the
+  // platform's next check, and returns the zone as it is then, with the
+  // check's outcome in `challenge.last_check`. A pending zone whose token
+  // answers becomes `ACTIVE`, and so does a suspended one while its name is
+  // free; otherwise the zone stays as it was. A call within 30 seconds of
+  // the zone's last check answers with that check's outcome and asks the
+  // name's DNS nothing. Refused with `NOT_FOUND` once a pending zone's
+  // window has ended, which deleted it, and with `SERVICE_UNAVAILABLE`,
+  // retryable, when the name's DNS didn't answer in time or too many checks
+  // are under way. A private zone has no challenge, and is refused with
+  // `BAD_REQUEST`. Checking an active zone changes nothing, so a client may
+  // repeat the call.
+  rpc VerifyHostedZone(VerifyHostedZoneRequest) returns (HostedZone) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=projects/*/hostedZones/*}:verify"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// A domain a project's records are answered for.
+message HostedZone {
+  option (google.api.resource) = {
+    type: "dns.origincloudapis.eu/HostedZone"
+    pattern: "projects/{project}/hostedZones/{hosted_zone}"
+    plural: "hostedZones"
+    singular: "hostedZone"
+  };
+
+  // Where a zone is answered.
+  enum Visibility {
+    // Not set.
+    VISIBILITY_UNSPECIFIED = 0;
+    // On the internet, from the platform's name servers.
+    PUBLIC = 1;
+    // Only inside the VPCs it is attached to.
+    PRIVATE = 2;
+  }
+
+  // Whether a zone is answered.
+  enum State {
+    // Not set.
+    STATE_UNSPECIFIED = 0;
+    // A public zone that hasn't proved control of its name yet: not
+    // answered, and holding no name.
+    PENDING_VERIFICATION = 1;
+    // Answered. A public zone in this state holds its name.
+    ACTIVE = 2;
+    // A public zone that lost control of its name: not answered, its
+    // record sets kept, its name free for another zone.
+    SUSPENDED = 3;
+  }
+
+  // The zone's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The zone's URN, the identifier access policies and the audit log use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The domain, such as `example.com`, without the final dot; answered in
+  // lowercase. A public zone's has at least two labels and at most 235
+  // characters, so its challenge name fits. A private zone's may have one
+  // label, but isn't `internal` or a name below it, which answer each
+  // instance's own name. Neither is one of the platform's own domains or a
+  // name below one.
+  //
+  // (-- api-linter: core::0122::name-suffix=disabled
+  //     aip.dev/not-precedent: a domain name, not a resource name. --)
+  string dns_name = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // Where the zone is answered.
+  Visibility visibility = 4 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // Whether the zone is answered.
+  State state = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The name servers to delegate a public zone to at its registrar, as NS
+  // records of its name. Fixed when the zone is created. Empty for a
+  // private zone.
+  repeated string name_servers = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // How a public zone proves control of its name, and how it went. Unset
+  // for a private zone.
+  OwnershipChallenge challenge = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the zone was created.
+  google.protobuf.Timestamp create_time = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the zone, such as `user:<id>` or
+  // `service_account:<id>`.
+  string creator = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Labels of your own, at most 50. The `origin:name` tag is the name the
+  // console shows.
+  map<string, string> tags = 10 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// A public zone's proof of control of its name: a TXT record named
+// `dns_name` whose value is `token`, answered by the name's current DNS.
+message OwnershipChallenge {
+  // Why a zone was suspended.
+  enum SuspensionReason {
+    // Not set.
+    SUSPENSION_REASON_UNSPECIFIED = 0;
+    // Several daily checks in a row found the name delegated to other name
+    // servers, without the zone's token.
+    CHALLENGE_LOST = 1;
+  }
+
+  // What a check of the challenge found.
+  enum CheckOutcome {
+    // Not set.
+    CHECK_OUTCOME_UNSPECIFIED = 0;
+    // The token answers, and the zone holds its name: it is `ACTIVE`.
+    OK = 1;
+    // The token doesn't answer at the TXT record's name, or the name's DNS
+    // can't be asked.
+    NOT_FOUND = 2;
+    // The token answers, but another zone holds the name.
+    NAME_HELD = 3;
+  }
+
+  // The name of the TXT record to create where the zone's name is hosted
+  // now: `_origin-challenge.` followed by the zone's `dns_name`.
+  //
+  // (-- api-linter: core::0122::name-suffix=disabled
+  //     aip.dev/not-precedent: a domain name, not a resource name. --)
+  string dns_name = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The value the TXT record holds.
+  string token = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When a pending zone that hasn't verified is deleted; unset once it
+  // verified.
+  google.protobuf.Timestamp expire_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the zone verified; unset while it is pending.
+  google.protobuf.Timestamp verify_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the zone was suspended; unset unless it is `SUSPENDED`.
+  google.protobuf.Timestamp suspend_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Why the zone was suspended; unset unless it is `SUSPENDED`.
+  SuspensionReason suspension_reason = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What the check `VerifyHostedZone` made found. Set only in that
+  // method's response.
+  CheckOutcome last_check = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetHostedZone.
+message GetHostedZoneRequest {
+  // The zone to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "dns.origincloudapis.eu/HostedZone"
+  ];
+}
+
+// The request for ListHostedZones.
+message ListHostedZonesRequest {
+  // The project whose zones to list, `projects/{project}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "dns.origincloudapis.eu/HostedZone"
+  ];
+
+  // The most zones to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the zones of this domain, written as `dns_name` is; every zone
+  // when left empty.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)
+  //
+  // (-- api-linter: core::0122::name-suffix=disabled
+  //     aip.dev/not-precedent: a domain name, not a resource name. --)
+  string dns_name = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListHostedZones.
+message ListHostedZonesResponse {
+  // The zones on this page.
+  repeated HostedZone hosted_zones = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateHostedZone.
+message CreateHostedZoneRequest {
+  // The project to create the zone in, `projects/{project}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "dns.origincloudapis.eu/HostedZone"
+  ];
+
+  // The zone to create: its `dns_name`, `visibility` and optionally its
+  // `tags`.
+  HostedZone hosted_zone = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id within a day returns the zone the
+  // first request created, as it is now, instead of creating a second one.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateHostedZone.
+message UpdateHostedZoneRequest {
+  // The zone, by its name, with the fields to change.
+  HostedZone hosted_zone = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `tags`, or `*`.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id within a day returns the zone as it
+  // is now, instead of changing it again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteHostedZone.
+message DeleteHostedZoneRequest {
+  // The zone to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "dns.origincloudapis.eu/HostedZone"
+  ];
+
+  // A UUID; a repeat with the same id within a day succeeds as the first
+  // did, instead of answering `NOT_FOUND`.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for VerifyHostedZone.
+message VerifyHostedZoneRequest {
+  // The public zone to verify.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "dns.origincloudapis.eu/HostedZone"
+  ];
+}

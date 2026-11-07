@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package origincloud.dns.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// VPC attachments: the VPCs a private zone answers in. Each attachment
+// makes the zone's names resolve from every instance in one VPC, in every
+// zone the VPC spans, and from no other VPC. A private zone attaches only
+// to VPCs of its own project, and a VPC holds at most one attached zone of
+// a name. An attachment's id is the VPC's id, so a client that knows the
+// zone and the VPC names the attachment without listing. Deleting a VPC
+// deletes its attachments. Attaching a public zone is refused: it answers on
+// the internet, in every VPC alike.
+service VpcAttachmentService {
+  option (google.api.default_host) = "dns.origincloudapis.eu";
+
+  // Returns a VPC attachment.
+  rpc GetVpcAttachment(GetVpcAttachmentRequest) returns (VpcAttachment) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/hostedZones/*/vpcAttachments/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a private zone's VPC attachments, oldest first. With `-` for the
+  // zone, lists every zone's in the project, which with `vpc` finds the
+  // zones attached to a VPC.
+  rpc ListVpcAttachments(ListVpcAttachmentsRequest) returns (ListVpcAttachmentsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/hostedZones/*}/vpcAttachments"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Attaches a private zone to a VPC of the zone's project. Refused with
+  // `BAD_REQUEST` for a public zone, or for a VPC that isn't in the zone's
+  // project, with the same words whichever project it is in. Refused with
+  // `CONFLICT` when the VPC holds an attached zone of the same name. A VPC
+  // created moments ago may be refused with `SERVICE_UNAVAILABLE`,
+  // retryable. The VPC's instances resolve the zone's names once the VPC's
+  // hosts serve the zone.
+  rpc CreateVpcAttachment(CreateVpcAttachmentRequest) returns (VpcAttachment) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/hostedZones/*}/vpcAttachments"
+      body: "vpc_attachment"
+    };
+    option (google.api.method_signature) = "parent,vpc_attachment";
+  }
+
+  // Detaches a private zone from a VPC. The VPC's instances stop resolving
+  // the zone's names once the VPC's hosts drop the zone.
+  rpc DeleteVpcAttachment(DeleteVpcAttachmentRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/hostedZones/*/vpcAttachments/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// A VPC a private zone answers in.
+message VpcAttachment {
+  option (google.api.resource) = {
+    type: "dns.origincloudapis.eu/VpcAttachment"
+    pattern: "projects/{project}/hostedZones/{hosted_zone}/vpcAttachments/{vpc_attachment}"
+    plural: "vpcAttachments"
+    singular: "vpcAttachment"
+  };
+
+  // The attachment's resource name. Its last segment is the VPC's id.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The attachment's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The VPC the zone answers in, in the zone's project.
+  string vpc = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
+  ];
+
+  // When the zone was attached.
+  google.protobuf.Timestamp create_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for GetVpcAttachment.
+message GetVpcAttachmentRequest {
+  // The attachment to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "dns.origincloudapis.eu/VpcAttachment"
+  ];
+}
+
+// The request for ListVpcAttachments.
+message ListVpcAttachmentsRequest {
+  // The private zone whose attachments to list,
+  // `projects/{project}/hostedZones/{hosted_zone}`, or `-` for the zone to
+  // list every zone's in the project.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "dns.origincloudapis.eu/VpcAttachment"
+  ];
+
+  // The most attachments to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the attachments to this VPC; every VPC's when left empty.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)
+  string vpc = 4 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
+  ];
+}
+
+// The response for ListVpcAttachments.
+message ListVpcAttachmentsResponse {
+  // The attachments on this page.
+  repeated VpcAttachment vpc_attachments = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateVpcAttachment.
+message CreateVpcAttachmentRequest {
+  // The private zone to attach,
+  // `projects/{project}/hostedZones/{hosted_zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "dns.origincloudapis.eu/VpcAttachment"
+  ];
+
+  // The attachment to create: its `vpc`.
+  VpcAttachment vpc_attachment = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id within a day returns the attachment
+  // the first request created, as it is now, instead of being refused as a
+  // conflict.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteVpcAttachment.
+message DeleteVpcAttachmentRequest {
+  // The attachment to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "dns.origincloudapis.eu/VpcAttachment"
+  ];
+
+  // A UUID; a repeat with the same id within a day succeeds as the first
+  // did, instead of answering `NOT_FOUND`.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}

@@ -1,0 +1,350 @@
+syntax = "proto3";
+
+package origincloud.dns.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// Record sets: every record of one name and type in a hosted zone. A zone
+// holds one record set per name and type, whatever its kind. A CNAME is
+// alone at its name and never at the zone's apex. The apex's SOA and NS
+// records are the platform's, written from the zone's name servers; they
+// aren't record sets, and no NS record delegates a name below the apex.
+//
+// A change is recorded when its method answers, and answered wherever the
+// zone is served. `BatchChangeRecordSets` makes several changes at once,
+// all or none.
+service RecordSetService {
+  option (google.api.default_host) = "dns.origincloudapis.eu";
+
+  // Returns a record set.
+  rpc GetRecordSet(GetRecordSetRequest) returns (RecordSet) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/hostedZones/*/recordSets/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a zone's record sets by `dns_name`, then by `type`.
+  rpc ListRecordSets(ListRecordSetsRequest) returns (ListRecordSetsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/hostedZones/*}/recordSets"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a record set. Refused with `CONFLICT` when the zone holds a
+  // record set of that name and type, or when a CNAME would share its name.
+  // Refused with `BAD_REQUEST` for a name outside the zone, a value its
+  // type doesn't take, an alias to a Floating IP outside the zone's
+  // project, or once the project's or organization's quota of record sets
+  // is used up. An alias to a Floating IP that was created moments ago may
+  // be refused with `SERVICE_UNAVAILABLE`, retryable.
+  rpc CreateRecordSet(CreateRecordSetRequest) returns (RecordSet) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/hostedZones/*}/recordSets"
+      body: "record_set"
+    };
+    option (google.api.method_signature) = "parent,record_set";
+  }
+
+  // Replaces a record set's TTL or what it answers with: `ttl`, `basic` or
+  // `alias`, or `*`. Naming one kind in `update_mask` replaces the kind the
+  // record set had. With `*`, a TTL left out keeps the record set's; naming
+  // `ttl` without one sets the default, 300 seconds. Its name and type
+  // stay; another type is a new record set.
+  rpc UpdateRecordSet(UpdateRecordSetRequest) returns (RecordSet) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{record_set.name=projects/*/hostedZones/*/recordSets/*}"
+      body: "record_set"
+    };
+    option (google.api.method_signature) = "record_set,update_mask";
+  }
+
+  // Deletes a record set.
+  rpc DeleteRecordSet(DeleteRecordSetRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/hostedZones/*/recordSets/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Deletes, replaces and creates record sets of one zone together, all or
+  // none. The zone is checked as the changes leave it, not after each
+  // change, so a CNAME may take the place of the A record set it replaces
+  // in one call. A batch makes 1 to 1000 changes, and names a record set
+  // once at most across `deletions` and `updates`. Each change is refused
+  // as its own method would refuse it, naming the change; then none is
+  // made.
+  rpc BatchChangeRecordSets(BatchChangeRecordSetsRequest) returns (BatchChangeRecordSetsResponse) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/hostedZones/*}/recordSets:batchChange"
+      body: "*"
+    };
+    option (google.api.method_signature) = "parent";
+  }
+}
+
+// Every record of one name and type in a hosted zone.
+message RecordSet {
+  option (google.api.resource) = {
+    type: "dns.origincloudapis.eu/RecordSet"
+    pattern: "projects/{project}/hostedZones/{hosted_zone}/recordSets/{record_set}"
+    plural: "recordSets"
+    singular: "recordSet"
+  };
+
+  // A record type.
+  enum Type {
+    // Not set.
+    TYPE_UNSPECIFIED = 0;
+    // IPv4 addresses.
+    A = 1;
+    // IPv6 addresses.
+    AAAA = 2;
+    // Another name this one is an alias of.
+    CNAME = 3;
+    // Text.
+    TXT = 4;
+    // Mail exchangers.
+    MX = 5;
+    // Service locations.
+    SRV = 6;
+    // The certificate authorities that may issue for the name.
+    CAA = 7;
+  }
+
+  // The record set's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The record set's URN, the identifier access policies and the audit log
+  // use.
+  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The name the records answer for: the zone's `dns_name` or a name below
+  // it, written in full, such as `www.example.com`, without the final dot;
+  // answered in lowercase. Labels may hold `_` (`_dmarc.example.com`), and
+  // `*` only as the whole leftmost label, for a wildcard.
+  //
+  // (-- api-linter: core::0122::name-suffix=disabled
+  //     aip.dev/not-precedent: a domain name, not a resource name. --)
+  string dns_name = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // The records' type. An alias is `A`.
+  Type type = 4 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // How long resolvers may keep the answer, from 30 seconds to 7 days, in
+  // whole seconds. 300 seconds when left out.
+  google.protobuf.Duration ttl = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // What the record set answers with: exactly one of these.
+  oneof data {
+    // Values of its own.
+    BasicRecordData basic = 6 [(google.api.field_behavior) = REQUIRED];
+
+    // The address of a platform resource, followed as it changes.
+    AliasRecordData alias = 7 [(google.api.field_behavior) = REQUIRED];
+  }
+
+  // When the record set was created.
+  google.protobuf.Timestamp create_time = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the record set was last changed.
+  google.protobuf.Timestamp update_time = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A record set's own values.
+message BasicRecordData {
+  // The records' values, 1 to 100, each once, written as `type` says. Names
+  // are written in full without the final dot, and answered in lowercase.
+  // - `A`: an IPv4 address, `192.0.2.10`.
+  // - `AAAA`: an IPv6 address, `2001:db8::10`.
+  // - `CNAME`: one name, `www.example.net`.
+  // - `TXT`: the text as it is, printable ASCII, up to 4000 characters,
+  //   without quotes; it is split into strings of 255 characters on the
+  //   wire.
+  // - `MX`: `{preference} {exchange}`, `10 mail.example.com`. `0 .`, alone,
+  //   says the name takes no mail.
+  // - `SRV`: `{priority} {weight} {port} {target}`,
+  //   `10 5 5060 sip.example.com`. A target of `.`, alone, says the service
+  //   isn't offered.
+  // - `CAA`: `{flags} {tag} {value}`, `0 issue letsencrypt.org`: flags 0 or
+  //   128, the value as it is, without quotes.
+  //
+  // A record set's records take at most 16 KiB on the wire.
+  repeated string values = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = UNORDERED_LIST
+  ];
+}
+
+// An alias: the record set answers with a platform resource's address, and
+// follows it as it changes.
+message AliasRecordData {
+  // The Floating IP whose address the record set answers with, in the
+  // zone's project. A Floating IP's address is an IPv4 address, so the
+  // record set is of type `A`; an `AAAA` alias is refused.
+  string floating_ip = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/FloatingIp"
+  ];
+}
+
+// The request for GetRecordSet.
+message GetRecordSetRequest {
+  // The record set to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "dns.origincloudapis.eu/RecordSet"
+  ];
+}
+
+// The request for ListRecordSets.
+message ListRecordSetsRequest {
+  // The zone whose record sets to list,
+  // `projects/{project}/hostedZones/{hosted_zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "dns.origincloudapis.eu/RecordSet"
+  ];
+
+  // The most record sets to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the record sets of this name, written as `dns_name` is; every
+  // name's when left empty.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)
+  //
+  // (-- api-linter: core::0122::name-suffix=disabled
+  //     aip.dev/not-precedent: a domain name, not a resource name. --)
+  string dns_name = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // Only the record sets of this type; every type's when left unset.
+  //
+  // (-- api-linter: core::0132::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)
+  RecordSet.Type type = 5 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListRecordSets.
+message ListRecordSetsResponse {
+  // The record sets on this page.
+  repeated RecordSet record_sets = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateRecordSet.
+message CreateRecordSetRequest {
+  // The zone to create the record set in,
+  // `projects/{project}/hostedZones/{hosted_zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "dns.origincloudapis.eu/RecordSet"
+  ];
+
+  // The record set to create: its `dns_name`, `type`, optionally its
+  // `ttl`, and one of `basic` and `alias`.
+  RecordSet record_set = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id within a day returns the record set
+  // the first request created, as it is now, instead of being refused as a
+  // conflict.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateRecordSet.
+message UpdateRecordSetRequest {
+  // The record set, by its name, with the fields to change.
+  RecordSet record_set = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `ttl`, `basic`, `alias`, or `*`.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id within a day returns the record set
+  // as the first request left it, instead of changing it again.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteRecordSet.
+message DeleteRecordSetRequest {
+  // The record set to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "dns.origincloudapis.eu/RecordSet"
+  ];
+
+  // A UUID; a repeat with the same id within a day succeeds as the first
+  // did, instead of answering `NOT_FOUND`.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for BatchChangeRecordSets.
+message BatchChangeRecordSetsRequest {
+  // The zone whose record sets to change,
+  // `projects/{project}/hostedZones/{hosted_zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "dns.origincloudapis.eu/RecordSet"
+  ];
+
+  // The record sets to delete, by name.
+  repeated string deletions = 2 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "dns.origincloudapis.eu/RecordSet"
+  ];
+
+  // The record sets to change, each with the fields to change, as
+  // `UpdateRecordSet` takes them.
+  repeated RecordSetUpdate updates = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // The record sets to create, as `CreateRecordSet` takes them.
+  repeated RecordSet creations = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // A UUID; a repeat with the same id within a day answers with the record
+  // sets the first request changed and created, as they are now, instead of
+  // making the changes again.
+  string request_id = 5 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// One change of a `BatchChangeRecordSets` request.
+message RecordSetUpdate {
+  // The record set, by its name, with the fields to change.
+  RecordSet record_set = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `ttl`, `basic`, `alias`, or `*`.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The response for BatchChangeRecordSets.
+message BatchChangeRecordSetsResponse {
+  // The record sets changed, then those created, each in the order of the
+  // request.
+  repeated RecordSet record_sets = 1;
+}

@@ -17,6 +17,7 @@ these files.
 | `origincloud.billing.v1beta1` | Billing: billing accounts and their payment method, project billing, billing countries, cost, usage, spend limits and the price list | `billing.origincloudapis.eu` |
 | `origincloud.support.v1beta1` | Support: cases and their messages | `support.origincloudapis.eu` |
 | `origincloud.observability.v1beta1` | Observability: time series of a resource's metrics | `observability.origincloudapis.eu` |
+| `origincloud.dns.v1beta1` | DNS: hosted zones, their record sets and private zones' VPC attachments | `dns.origincloudapis.eu` |
 
 ## Design
 

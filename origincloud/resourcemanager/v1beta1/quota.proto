@@ -34,6 +34,12 @@ message OrganizationQuota {
   // The most floating IPs.
   int64 max_public_ips = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
 
+  // The most DNS hosted zones, including those not yet verified.
+  int64 max_hosted_zones = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The most DNS record sets, summed over every hosted zone.
+  int64 max_record_sets = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
   // How much of each limit the organization's projects use together.
   QuotaUsage usage = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
@@ -72,6 +78,14 @@ message ProjectQuota {
   // The most floating IPs; unset means no budget.
   optional int64 max_public_ips = 6 [(google.api.field_behavior) = OPTIONAL];
 
+  // The most DNS hosted zones, including those not yet verified; unset
+  // means no budget.
+  optional int64 max_hosted_zones = 8 [(google.api.field_behavior) = OPTIONAL];
+
+  // The most DNS record sets, summed over the project's hosted zones; unset
+  // means no budget.
+  optional int64 max_record_sets = 9 [(google.api.field_behavior) = OPTIONAL];
+
   // How much of each budget the project uses.
   QuotaUsage usage = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
@@ -94,4 +108,12 @@ message QuotaUsage {
 
   // Floating IPs.
   int64 public_ips = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // DNS hosted zones, including those not yet verified; unset while they
+  // can't be counted, the other figures answered all the same.
+  optional int64 hosted_zones = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // DNS record sets; unset while they can't be counted, the other figures
+  // answered all the same.
+  optional int64 record_sets = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
