@@ -259,6 +259,17 @@ message Instance {
   // Each network interface's private addresses, in the order of
   // `network_interfaces`; an interface not attached yet has none.
   repeated InterfaceAddresses interface_addresses = 16 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The service account the instance runs as,
+  // `organizations/{organization}/serviceAccounts/{service_account}`: a
+  // `WORKLOAD` service account of the instance's organization that isn't
+  // deleted. Launching with one needs `iam.service_account.act_as` on the
+  // organization as well. Empty for an instance that runs as none.
+  string service_account = 17 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "iam.origincloudapis.eu/ServiceAccount"
+  ];
 }
 
 // An instance's boot volume.
