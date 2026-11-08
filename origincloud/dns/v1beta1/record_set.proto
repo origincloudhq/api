@@ -142,7 +142,7 @@ message RecordSet {
 
   // How long resolvers may keep the answer, from 30 seconds to 7 days, in
   // whole seconds. 300 seconds when left out.
-  google.protobuf.Duration ttl = 5 [(google.api.field_behavior) = OPTIONAL];
+  optional google.protobuf.Duration ttl = 5 [(google.api.field_behavior) = OPTIONAL];
 
   // What the record set answers with: exactly one of these.
   oneof data {
