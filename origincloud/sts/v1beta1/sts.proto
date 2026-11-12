@@ -35,7 +35,7 @@ service SecurityTokenService {
 // The request of `AssumeServiceAccount`.
 message AssumeServiceAccountRequest {
   // The OIDC token, a JWT its issuer signed, such as a CI job's.
-  string token = 1 [(google.api.field_behavior) = REQUIRED];
+  string oidc_token = 1 [(google.api.field_behavior) = REQUIRED];
 
   // The service account to assume,
   // `organizations/{organization}/serviceAccounts/{service_account}`. Only
