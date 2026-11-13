@@ -52,6 +52,10 @@ message AuditLogEntry {
     SUCCEEDED = 1;
     // It was refused for lack of a permission.
     DENIED = 2;
+    // It was attempted and refused for another reason, which `details`
+    // names in `reason`, such as a key asked to decrypt under the wrong
+    // encryption context.
+    FAILED = 3;
   }
 
   // The entry's resource name.
