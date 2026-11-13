@@ -74,11 +74,12 @@ service KeyService {
     option (google.api.method_signature) = "parent,key";
   }
 
-  // Enables or disables a key: `state` is the only field it changes. A
-  // disabled key refuses every operation but GetPublicKey with `CONFLICT`
-  // until it is enabled again. Setting the state the key has already
-  // succeeds and changes nothing. A deleted key can't be enabled or
-  // disabled: undelete it first. Needs `kms.key.update` on the project.
+  // Enables or disables a key, or changes its tags: `state` and `tags` are
+  // the fields it changes. A disabled key refuses every operation but
+  // GetPublicKey with `CONFLICT` until it is enabled again. Setting the
+  // state or the tags the key has already succeeds and changes nothing. A
+  // deleted key can't be changed: undelete it first. Needs
+  // `kms.key.update` on the project.
   rpc UpdateKey(UpdateKeyRequest) returns (Key) {
     option (google.api.http) = {
       patch: "/v1beta1/{key.name=projects/*/regions/*/keys/*}"
@@ -278,6 +279,10 @@ message Key {
   // When a deleted key's material is destroyed, or was; unset unless the
   // key is `DELETED`.
   google.protobuf.Timestamp purge_time = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Labels of your own, at most 50. The `origin:name` tag is the name the
+  // console shows.
+  map<string, string> tags = 9 [(google.api.field_behavior) = OPTIONAL];
 }
 
 // A signing key version's public key.
@@ -348,7 +353,7 @@ message CreateKeyRequest {
     (google.api.resource_reference).child_type = "kms.origincloudapis.eu/Key"
   ];
 
-  // The key to create: its `purpose`.
+  // The key to create: its `purpose`, and optionally its tags.
   Key key = 2 [(google.api.field_behavior) = REQUIRED];
 
   // A UUID; a repeat with the same id within a day returns the key the
@@ -362,10 +367,11 @@ message CreateKeyRequest {
 
 // The request for UpdateKey.
 message UpdateKeyRequest {
-  // The key, by its name, with the state to set: `ENABLED` or `DISABLED`.
+  // The key, by its name, with the state to set (`ENABLED` or `DISABLED`)
+  // or the tags to replace its tags with.
   Key key = 1 [(google.api.field_behavior) = REQUIRED];
 
-  // The fields to change: `state`, or `*`.
+  // The fields to change: `state`, `tags`, or both. `*` is both.
   google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
 
   // A UUID; a repeat with the same id within a day returns the key as the
