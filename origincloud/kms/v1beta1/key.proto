@@ -170,7 +170,8 @@ service KeyService {
     option (google.api.method_signature) = "name";
   }
 
-  // Signs up to 64 KiB with a signing key's primary version. ECDSA hashes
+  // Signs up to 64 KiB with a signing key's primary version, or the
+  // version `key_version` names. ECDSA hashes
   // the data with SHA-256 itself: send the data, not a digest. Refused with
   // `CONFLICT` for a key that isn't enabled, and with `BAD_REQUEST` for an
   // `ENCRYPT_DECRYPT` key. Needs `kms.key.sign` on the project.
@@ -525,6 +526,17 @@ message SignRequest {
 
   // The data to sign, at most 64 KiB.
   bytes data = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The version of `name` to sign with, `{name}/versions/{version}`.
+  // Without it, the key's primary version signs. Name it when the
+  // signature's verifiers must know the version before the signature
+  // exists, for example a token whose header names its key: the primary
+  // can change between reading it and signing. Refused with `BAD_REQUEST`
+  // for a version of another key or a destroyed version.
+  string key_version = 3 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "kms.origincloudapis.eu/KeyVersion"
+  ];
 }
 
 // The response for Sign.
