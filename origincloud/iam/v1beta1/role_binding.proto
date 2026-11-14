@@ -3,7 +3,8 @@ syntax = "proto3";
 // Users, service accounts, roles, role bindings, permissions and the audit log.
 //
 // A role is a predefined, named set of permissions; a role binding grants
-// one to a user or a service account, organization-wide or in one project.
+// one to a user, a service account or a platform service agent,
+// organization-wide or in one project.
 // An organization's audit log records each change to who may do what in it.
 package origincloud.iam.v1beta1;
 
@@ -27,6 +28,14 @@ import "google/protobuf/timestamp.proto";
 //   account's current one.
 // - `serviceAccount:{service_account}`: a service account of the same
 //   organization, by its id.
+// - `serviceAgent:{service_agent}`: a platform service agent, by its name,
+//   such as `serviceAgent:compute`. A service agent is the identity one of
+//   the platform's services acts as in an organization. Any organization
+//   can bind one, but only to a role its service needs; nobody outside the
+//   platform can act as one or get a credential for it. Every organization
+//   is created with `serviceAgent:compute` bound to
+//   `roles/kms.grant-delegate`; delete that binding and compute makes no
+//   new grants on the organization's keys.
 //
 // and shown, never accepted, as:
 // - `userId:{user}`: a user by the id of their account, when no verified
@@ -60,7 +69,8 @@ service RoleBindingService {
   // verified email: nothing is held for an address until its account
   // exists. Refused with `CONFLICT` when the member already holds the role
   // at that scope, and with `BAD_REQUEST` when the member is a deleted
-  // service account.
+  // service account, names no service agent the platform has, or is a
+  // service agent and the role isn't one its service needs.
   rpc CreateRoleBinding(CreateRoleBindingRequest) returns (RoleBinding) {
     option (google.api.http) = {
       post: "/v1beta1/{parent=organizations/*}/roleBindings"
@@ -97,8 +107,8 @@ message RoleBinding {
   // use.
   string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // Who holds the role: `user:{email}` or
-  // `serviceAccount:{service_account}`. A user is shown with their
+  // Who holds the role: `user:{email}`, `serviceAccount:{service_account}`
+  // or `serviceAgent:{service_agent}`. A user is shown with their
   // account's current verified address, as `userId:{user}` when it has
   // none, or as `deleted:user:{user}` once the account is gone.
   string member = 3 [
@@ -149,8 +159,9 @@ message ListRoleBindingsRequest {
     (google.api.resource_reference).child_type = "iam.origincloudapis.eu/RoleBinding"
   ];
 
-  // Only the bindings of this member, `user:{email}` or
-  // `serviceAccount:{service_account}`. Every member's when empty.
+  // Only the bindings of this member, `user:{email}`,
+  // `serviceAccount:{service_account}` or `serviceAgent:{service_agent}`.
+  // Every member's when empty.
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a typed filter, in place of a filter string. --)

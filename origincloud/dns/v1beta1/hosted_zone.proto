@@ -158,7 +158,10 @@ message HostedZone {
 
   // The domain, such as `example.com`, without the final dot; answered in
   // lowercase. A public zone's has at least two labels and at most 235
-  // characters, so its challenge name fits. A private zone's may have one
+  // characters, so its challenge name fits, and isn't a special-use domain
+  // or below one, as none is delegated on the internet: `test`,
+  // `localhost`, `invalid`, `example`, `local`, `onion`, `alt`, `internal`
+  // and `home.arpa`. A private zone's may have one
   // label, but isn't `internal` or a name below it, which answer each
   // instance's own name. Neither is one of the platform's own domains or a
   // name below one.
