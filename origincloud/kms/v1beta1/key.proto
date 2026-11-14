@@ -78,7 +78,9 @@ service KeyService {
   // the fields it changes. A disabled key refuses every operation but
   // GetPublicKey with `CONFLICT` until it is enabled again. Setting the
   // state or the tags the key has already succeeds and changes nothing. A
-  // deleted key can't be changed: undelete it first. Needs
+  // deleted key can't be changed: undelete it first. A key the platform
+  // manages (`platform_managed`) is refused with `FORBIDDEN`, even when the
+  // request would change nothing. Needs
   // `kms.key.update` on the project.
   rpc UpdateKey(UpdateKeyRequest) returns (Key) {
     option (google.api.http) = {
@@ -92,7 +94,8 @@ service KeyService {
   // but GetPublicKey, and its material is destroyed at `purge_time`, after
   // `destroy_delay`. Until then UndeleteKey restores it, disabled. After it,
   // nothing it encrypted can ever be decrypted again. Deleting a deleted key
-  // succeeds and changes nothing. Needs `kms.key.delete` on the project.
+  // succeeds and changes nothing. A key the platform manages is refused with
+  // `FORBIDDEN`, deleted or not. Needs `kms.key.delete` on the project.
   rpc DeleteKey(DeleteKeyRequest) returns (Key) {
     option (google.api.http) = {delete: "/v1beta1/{name=projects/*/regions/*/keys/*}"};
     option (google.api.method_signature) = "name";
@@ -100,8 +103,9 @@ service KeyService {
 
   // Restores a deleted key whose material isn't destroyed yet: it becomes
   // `DISABLED`, to be enabled with UpdateKey. Refused with `CONFLICT` for a
-  // key that isn't deleted, or whose `purge_time` has passed. Needs
-  // `kms.key.delete` on the project.
+  // key that isn't deleted, or whose `purge_time` has passed, and with
+  // `FORBIDDEN` for a key the platform manages. Needs `kms.key.delete` on
+  // the project.
   rpc UndeleteKey(UndeleteKeyRequest) returns (Key) {
     option (google.api.http) = {
       post: "/v1beta1/{name=projects/*/regions/*/keys/*}:undelete"
@@ -113,7 +117,8 @@ service KeyService {
   // Adds a new version to a key and makes it the primary: new ciphertexts
   // and signatures use it, and every earlier version still decrypts and
   // its public key stays readable. Refused with `CONFLICT` for a key that
-  // isn't enabled. Needs `kms.key.rotate` on the project.
+  // isn't enabled, and with `FORBIDDEN` for a key the platform manages.
+  // Needs `kms.key.rotate` on the project.
   rpc RotateKey(RotateKeyRequest) returns (Key) {
     option (google.api.http) = {
       post: "/v1beta1/{name=projects/*/regions/*/keys/*}:rotate"
@@ -284,6 +289,14 @@ message Key {
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
   map<string, string> tags = 9 [(google.api.field_behavior) = OPTIONAL];
+
+  // Whether the platform manages the key: it made the key in your project
+  // for its own use of the project's data, such as the key, tagged
+  // `origin:name=volumes`, that protects your volumes' data keys. You see it,
+  // its grants and its audit log entries like any key of yours, but
+  // UpdateKey, DeleteKey, UndeleteKey and RotateKey refuse it with
+  // `FORBIDDEN`, whatever roles you hold.
+  bool platform_managed = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
 // A signing key version's public key.
