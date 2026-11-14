@@ -1,0 +1,235 @@
+syntax = "proto3";
+
+package origincloud.billing.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+import "origincloud/billing/v1beta1/billing_account.proto";
+
+// A billing account's acceptances of the legal documents customers accept:
+// the Terms of Service, the Data Processing Agreement, the Service Level
+// Agreement and the Acceptable Use Policy. The billing account is the legal
+// entity that accepts. An acceptance is a record that never changes, and it
+// is kept after the billing account and its organization are deleted.
+service LegalAcceptanceService {
+  option (google.api.default_host) = "billing.origincloudapis.eu";
+
+  // Lists a billing account's acceptances, the latest first. Needs
+  // `admin.billing_account.get` on the organization.
+  rpc ListLegalAcceptances(ListLegalAcceptancesRequest) returns (ListLegalAcceptancesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=organizations/*/billingAccounts/*}/legalAcceptances"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Returns one of a billing account's acceptances. Needs
+  // `admin.billing_account.get` on the organization.
+  rpc GetLegalAcceptance(GetLegalAcceptanceRequest) returns (LegalAcceptance) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/billingAccounts/*/legalAcceptances/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Accepts versions of legal documents for a billing account, all of them
+  // or none. Each version is named with the `sha256` of the text the caller
+  // showed, and must be the version in force or one published to take effect
+  // later. A version the account accepted before is returned as it was then.
+  // `acts_as_business` must be true: the services are offered to businesses
+  // only. Needs `admin.billing_account.update` on the organization.
+  //
+  // (-- api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: the acceptances recorded are the answer. --)
+  rpc AcceptLegalDocuments(AcceptLegalDocumentsRequest) returns (ListLegalAcceptancesResponse) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=organizations/*/billingAccounts/*}:acceptLegalDocuments"
+      body: "*"
+    };
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // Returns the legal document versions a billing account has yet to
+  // accept. A version is `blocking` once it is in force: until the account
+  // accepts it, creating or growing billable resources charged to the
+  // account is refused. Running resources are never affected. Needs
+  // `admin.billing_account.get` on the organization.
+  //
+  // (-- api-linter: core::0136::http-uri-suffix=disabled
+  //     aip.dev/not-precedent: a query verb, as the cost reports have. --)
+  rpc QueryLegalRequirements(QueryLegalRequirementsRequest) returns (QueryLegalRequirementsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{name=organizations/*/billingAccounts/*}:queryLegalRequirements"};
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// A billing account's acceptance of one version of a legal document.
+message LegalAcceptance {
+  option (google.api.resource) = {
+    type: "billing.origincloudapis.eu/LegalAcceptance"
+    pattern: "organizations/{organization}/billingAccounts/{billing_account}/legalAcceptances/{legal_acceptance}"
+    plural: "legalAcceptances"
+    singular: "legalAcceptance"
+  };
+
+  // How the acceptance came about.
+  enum Method {
+    // Not used.
+    METHOD_UNSPECIFIED = 0;
+
+    // When the organization or the billing account was created.
+    SIGNUP = 1;
+
+    // A changed version of a document the account had accepted before.
+    CHANGE = 2;
+
+    // The first version of a document, by an account that existed before
+    // the document was published.
+    MIGRATION = 3;
+  }
+
+  // The acceptance's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The version accepted,
+  // `legalDocuments/{legal_document}/versions/{version}`.
+  string legal_document_version = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
+  ];
+
+  // The SHA-256 of the text accepted: the version's `sha256`.
+  string sha256 = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Who accepted: `user:{id}`, or `service_account:{id}` for a service
+  // account.
+  string accepter = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the version was accepted.
+  google.protobuf.Timestamp accept_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // How the acceptance came about.
+  Method method = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether the accepter confirmed acting as a business. Always true.
+  bool acts_as_business = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The legal entity that accepted, as it was at `accept_time`: the
+  // organization's name.
+  string organization_display_name = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The billing account's address at `accept_time`; unset for an account
+  // that had none.
+  BillingAddress billing_address = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The billing account's VAT identification number at `accept_time`;
+  // empty when it had none.
+  string vat_id = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A legal document version a billing account has yet to accept.
+message LegalRequirement {
+  // The version, `legalDocuments/{legal_document}/versions/{version}`.
+  string legal_document_version = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
+  ];
+
+  // The version's title, such as `Terms of Service`.
+  string display_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The day the version takes effect.
+  google.type.Date effective_date = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // A plain-language summary of what changed.
+  string change_summary = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The version's `sha256`, to accept it by.
+  string sha256 = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // In force already: until it is accepted, creating or growing billable
+  // resources charged to the account is refused.
+  bool blocking = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A version to accept, with the text it was shown as.
+message LegalDocumentVersionToAccept {
+  // The version, `legalDocuments/{legal_document}/versions/{version}`.
+  string legal_document_version = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
+  ];
+
+  // The version's `sha256`, as read with it: an acceptance is refused when
+  // the text shown isn't the version's.
+  string sha256 = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for ListLegalAcceptances.
+message ListLegalAcceptancesRequest {
+  // The billing account,
+  // `organizations/{organization}/billingAccounts/{billing_account}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "billing.origincloudapis.eu/LegalAcceptance"
+  ];
+
+  // The most acceptances to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListLegalAcceptances and AcceptLegalDocuments.
+message ListLegalAcceptancesResponse {
+  // The acceptances on this page; for AcceptLegalDocuments, one per version
+  // accepted, in the order requested.
+  repeated LegalAcceptance legal_acceptances = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for GetLegalAcceptance.
+message GetLegalAcceptanceRequest {
+  // The acceptance to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalAcceptance"
+  ];
+}
+
+// The request for AcceptLegalDocuments.
+message AcceptLegalDocumentsRequest {
+  // The billing account that accepts,
+  // `organizations/{organization}/billingAccounts/{billing_account}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+
+  // The versions to accept.
+  repeated LegalDocumentVersionToAccept versions = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // That the caller acts as a business (§ 14 BGB) for the billing account's
+  // legal entity. Must be true.
+  bool acts_as_business = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for QueryLegalRequirements.
+message QueryLegalRequirementsRequest {
+  // The billing account,
+  // `organizations/{organization}/billingAccounts/{billing_account}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
+  ];
+}
+
+// The response for QueryLegalRequirements.
+message QueryLegalRequirementsResponse {
+  // The versions to accept, by document, then by the day they take effect.
+  repeated LegalRequirement requirements = 1;
+}
