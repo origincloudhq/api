@@ -9,6 +9,7 @@ import "google/api/resource.proto";
 import "google/protobuf/timestamp.proto";
 import "google/type/date.proto";
 import "origincloud/billing/v1beta1/billing_account.proto";
+import "origincloud/billing/v1beta1/legal_document.proto";
 
 // A billing account's acceptances of the legal documents customers accept:
 // the Terms of Service, the Data Processing Agreement, the Service Level
@@ -150,19 +151,6 @@ message LegalRequirement {
   // In force already: until it is accepted, creating or growing billable
   // resources charged to the account is refused.
   bool blocking = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
-}
-
-// A version to accept, with the text it was shown as.
-message LegalDocumentVersionToAccept {
-  // The version, `legalDocuments/{legal_document}/versions/{version}`.
-  string legal_document_version = 1 [
-    (google.api.field_behavior) = REQUIRED,
-    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
-  ];
-
-  // The version's `sha256`, as read with it: an acceptance is refused when
-  // the text shown isn't the version's.
-  string sha256 = 2 [(google.api.field_behavior) = REQUIRED];
 }
 
 // The request for ListLegalAcceptances.

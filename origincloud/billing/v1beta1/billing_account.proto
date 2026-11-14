@@ -22,6 +22,7 @@ import "google/api/resource.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
+import "origincloud/billing/v1beta1/legal_document.proto";
 
 // Billing accounts, which project each one pays for, and how they are paid.
 service BillingAccountService {
@@ -366,6 +367,22 @@ message CreateBillingAccountRequest {
     (google.api.field_info).format = UUID4,
     (google.api.field_behavior) = OPTIONAL
   ];
+
+  // The legal document versions the new billing account accepts, each with
+  // the `sha256` of the text shown. Required once a version of a document
+  // customers accept is in force: every such version must be accepted, or
+  // the request fails naming `acceptedLegalDocuments` and creates nothing.
+  //
+  // (-- api-linter: core::0133::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: the legal entity a billing account is accepts the contract when it is created; an acceptance is not a field of the resource. --)
+  repeated LegalDocumentVersionToAccept accepted_legal_documents = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // That the caller acts as a business (§ 14 BGB) for the billing account's
+  // legal entity. Must be true when `accepted_legal_documents` is set.
+  //
+  // (-- api-linter: core::0133::request-unknown-fields=disabled
+  //     aip.dev/not-precedent: part of the acceptance above. --)
+  bool acts_as_business = 5 [(google.api.field_behavior) = OPTIONAL];
 }
 
 // The request for UpdateBillingAccount.

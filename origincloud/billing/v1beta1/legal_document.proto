@@ -167,6 +167,19 @@ message LegalDocumentVersion {
   string pdf_uri = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
+// A version to accept, with the text it was shown as.
+message LegalDocumentVersionToAccept {
+  // The version, `legalDocuments/{legal_document}/versions/{version}`.
+  string legal_document_version = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
+  ];
+
+  // The version's `sha256`, as read with it: an acceptance is refused when
+  // the text shown isn't the version's.
+  string sha256 = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
 // The request for ListLegalDocuments.
 message ListLegalDocumentsRequest {
   // The most documents to return; the server clamps it, and 0 means its
