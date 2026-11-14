@@ -1,0 +1,241 @@
+syntax = "proto3";
+
+package origincloud.billing.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/httpbody.proto";
+import "google/api/resource.proto";
+import "google/type/date.proto";
+
+// The legal documents Origin Cloud publishes: the Terms of Service, the Data
+// Processing Agreement, the Service Level Agreement and the Acceptable Use
+// Policy a customer accepts, and the documents published beside them. Every
+// version stays readable under its fixed name once it is published, and none
+// is ever changed: a correction is a new version.
+//
+// Every method of this service is answered without an access token.
+service LegalDocumentService {
+  option (google.api.default_host) = "billing.origincloudapis.eu";
+
+  // Lists the published legal documents, in a fixed order: `terms`, `dpa`,
+  // `sla`, `aup`, `subprocessors`, `toms`, `privacy`, `switching`,
+  // `shared-responsibility`. A document with no published version yet is
+  // left out.
+  rpc ListLegalDocuments(ListLegalDocumentsRequest) returns (ListLegalDocumentsResponse) {
+    option (google.api.http) = {get: "/v1beta1/legalDocuments"};
+  }
+
+  // Returns a legal document, with the version in force now and the latest
+  // one published. Fails with `NOT_FOUND` for a document with no published
+  // version.
+  rpc GetLegalDocument(GetLegalDocumentRequest) returns (LegalDocument) {
+    option (google.api.http) = {get: "/v1beta1/{name=legalDocuments/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a legal document's published versions, the latest first.
+  rpc ListLegalDocumentVersions(ListLegalDocumentVersionsRequest) returns (ListLegalDocumentVersionsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=legalDocuments/*}/versions"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Returns one published version of a legal document, its text included.
+  rpc GetLegalDocumentVersion(GetLegalDocumentVersionRequest) returns (LegalDocumentVersion) {
+    option (google.api.http) = {get: "/v1beta1/{name=legalDocuments/*/versions/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Returns a published version as a PDF (`application/pdf`), the file
+  // itself rather than JSON. Every page's footer names the document, the
+  // version, the date it takes effect and its `sha256`.
+  //
+  // (-- api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: a download answers with the file itself. --)
+  rpc DownloadLegalDocumentVersion(DownloadLegalDocumentVersionRequest) returns (google.api.HttpBody) {
+    option (google.api.http) = {get: "/v1beta1/{name=legalDocuments/*/versions/*}:download"};
+  }
+}
+
+// A legal document: every version of one kind of document, such as the Terms
+// of Service.
+message LegalDocument {
+  option (google.api.resource) = {
+    type: "billing.origincloudapis.eu/LegalDocument"
+    pattern: "legalDocuments/{legal_document}"
+    plural: "legalDocuments"
+    singular: "legalDocument"
+  };
+
+  // The document's resource name, `legalDocuments/{legal_document}`, where
+  // `{legal_document}` is one of `terms`, `dpa`, `sla`, `aup`,
+  // `subprocessors`, `toms`, `privacy`, `switching` and
+  // `shared-responsibility`.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The document's title, as its latest version names it, such as `Terms of
+  // Service`.
+  string display_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Whether a customer accepts this document. A `MATERIAL` version of one
+  // that is accepted needs a new acceptance; the other documents are
+  // published only.
+  bool acceptance_required = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The version in force today, by its resource name. Empty while the first
+  // version has not taken effect yet.
+  string current_version = 4 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
+  ];
+
+  // The latest version published, by its resource name: `current_version`,
+  // or a version announced to take effect later.
+  string latest_version = 5 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
+  ];
+}
+
+// One published version of a legal document. It never changes once
+// published.
+message LegalDocumentVersion {
+  option (google.api.resource) = {
+    type: "billing.origincloudapis.eu/LegalDocumentVersion"
+    pattern: "legalDocuments/{legal_document}/versions/{version}"
+    plural: "legalDocumentVersions"
+    singular: "legalDocumentVersion"
+  };
+
+  // What a version changes, and so what publishing it asks of a customer.
+  enum ChangeClass {
+    // Not used.
+    CHANGE_CLASS_UNSPECIFIED = 0;
+
+    // Changes rights or obligations. For a document customers accept, a
+    // customer accepts this version before it applies to them, and it is
+    // announced at least six weeks before it takes effect.
+    MATERIAL = 1;
+
+    // Announced ahead and never accepted, such as a new sub-processor,
+    // announced at least 30 days before it takes effect.
+    NOTICE = 2;
+
+    // Wording, corrections and formatting. Asks nothing of anyone.
+    EDITORIAL = 3;
+  }
+
+  // The version's resource name,
+  // `legalDocuments/{legal_document}/versions/{version}`, where `{version}`
+  // is `YYYY-MM`, or `YYYY-MM-2`, `YYYY-MM-3` and so on for another version
+  // in the same month.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The version's title, such as `Terms of Service`.
+  string display_name = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The day the version takes effect. It applies from that day until the
+  // next version of the document takes effect.
+  google.type.Date effective_date = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // What the version changes.
+  ChangeClass change_class = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // A plain-language summary of what changed, as the acceptance dialog and
+  // the announcement show it.
+  string change_summary = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The SHA-256 of `markdown`, in lowercase hexadecimal: what identifies the
+  // version, and what an acceptance of it records.
+  string sha256 = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The version's source, Markdown with its YAML front matter, exactly as
+  // `sha256` is computed over it.
+  string markdown = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The version's text as an HTML fragment, without its title: safe to embed
+  // as it is. A reference to another legal document links the version of it
+  // in force on `effective_date`.
+  string html = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Where the version is published on the web, under a URL that never
+  // changes, such as `https://origincloud.eu/legal/terms/2026-12`.
+  string uri = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Where the version's PDF is downloaded from (DownloadLegalDocumentVersion).
+  string pdf_uri = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for ListLegalDocuments.
+message ListLegalDocumentsRequest {
+  // The most documents to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListLegalDocuments.
+message ListLegalDocumentsResponse {
+  // The documents on this page.
+  repeated LegalDocument legal_documents = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for GetLegalDocument.
+message GetLegalDocumentRequest {
+  // The document to return, `legalDocuments/{legal_document}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocument"
+  ];
+}
+
+// The request for ListLegalDocumentVersions.
+message ListLegalDocumentVersionsRequest {
+  // The document whose versions to list, `legalDocuments/{legal_document}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocument"
+  ];
+
+  // The most versions to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListLegalDocumentVersions.
+message ListLegalDocumentVersionsResponse {
+  // The versions on this page.
+  repeated LegalDocumentVersion legal_document_versions = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for GetLegalDocumentVersion.
+message GetLegalDocumentVersionRequest {
+  // The version to return,
+  // `legalDocuments/{legal_document}/versions/{version}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
+  ];
+}
+
+// The request for DownloadLegalDocumentVersion.
+message DownloadLegalDocumentVersionRequest {
+  // The version to download,
+  // `legalDocuments/{legal_document}/versions/{version}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
+  ];
+}
