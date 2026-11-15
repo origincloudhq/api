@@ -44,9 +44,6 @@ message PublicImage {
   // The image's resource name, `zones/{zone}/images/{image}`.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The image's URN, the identifier access policies and the audit log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // What the image holds.
   string description = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
 
@@ -69,8 +66,9 @@ message PublicImage {
   // Where it is in its lifecycle.
   Image.State state = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The family the image belongs to, `imageFamilies/{image_family}`; empty
-  // for an image of none.
+  // The full name of the family the image belongs to,
+  // `//compute.origincloudapis.eu/imageFamilies/{image_family}`; empty for
+  // an image of none.
   string image_family = 10 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "compute.origincloudapis.eu/ImageFamily"

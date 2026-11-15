@@ -92,9 +92,6 @@ message Image {
   // The image's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The image's URN, the identifier access policies and the audit log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // What the image holds, as you describe it.
   string description = 3 [(google.api.field_behavior) = REQUIRED];
 
@@ -129,8 +126,14 @@ message Image {
   // Where it is in its lifecycle.
   State state = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the image, such as `user:<id>`.
-  string creator = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the image, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 10 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
@@ -146,8 +149,8 @@ message ImageBlockDevice {
   // The disk's size in GiB, at least the snapshot's.
   int32 size_gib = 2 [(google.api.field_behavior) = REQUIRED];
 
-  // The protected snapshot the disk is created from, in the image's
-  // project and zone; an empty disk when left empty.
+  // The full name of the protected snapshot the disk is created from, in
+  // the image's project and zone; an empty disk when left empty.
   string source_snapshot = 3 [
     (google.api.field_behavior) = OPTIONAL,
     (google.api.resource_reference).type = "pvs.origincloudapis.eu/Snapshot"

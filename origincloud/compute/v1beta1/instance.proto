@@ -165,21 +165,20 @@ message Instance {
   // The instance's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The instance's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
-  // The instance type, `instanceTypes/{instance_type}`, such as
-  // `instanceTypes/gp1.core.2`: one whose `available` is true. Changing it
+  // The instance type by its full name,
+  // `//compute.origincloudapis.eu/instanceTypes/{instance_type}`, such as
+  // `//compute.origincloudapis.eu/instanceTypes/gp1.core.2`: one whose
+  // `available` is true. Changing it
   // needs the instance `STOPPED`.
   string instance_type = 3 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference).type = "compute.origincloudapis.eu/InstanceType"
   ];
 
-  // The image the boot volume is created from, in the instance's zone: one
-  // of the project's own, `projects/{project}/zones/{zone}/images/{image}`,
-  // or a public one, `zones/{zone}/images/{image}`. Set exactly one of
+  // The full name of the image the boot volume is created from, in the
+  // instance's zone: one of the project's own,
+  // `//compute.origincloudapis.eu/projects/{project}/zones/{zone}/images/{image}`,
+  // or a public one, `//compute.origincloudapis.eu/zones/{zone}/images/{image}`. Set exactly one of
   // `image` and `image_family`; launched from a family, this is the public
   // image the family resolved to.
   string image = 4 [
@@ -188,8 +187,8 @@ message Instance {
     (google.api.resource_reference).type = "compute.origincloudapis.eu/Image"
   ];
 
-  // The image family to launch the current public image of,
-  // `imageFamilies/{image_family}`. Set exactly one of `image` and
+  // The full name of the image family to launch the current public image
+  // of, `//compute.origincloudapis.eu/imageFamilies/{image_family}`. Set exactly one of `image` and
   // `image_family`. Empty when the instance was launched from an image.
   string image_family = 5 [
     (google.api.field_behavior) = IMMUTABLE,
@@ -197,8 +196,8 @@ message Instance {
     (google.api.resource_reference).type = "compute.origincloudapis.eu/ImageFamily"
   ];
 
-  // The key pair whose public key is installed for `login_user`, in the
-  // instance's project.
+  // The full name of the key pair whose public key is installed for
+  // `login_user`, in the instance's project.
   string key_pair = 6 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,
@@ -221,8 +220,8 @@ message Instance {
     (google.api.field_behavior) = OPTIONAL
   ];
 
-  // The network interfaces, in device order, the boot interface first;
-  // exactly one today. Each is an existing interface in the instance's
+  // The network interfaces' full names, in device order, the boot
+  // interface first; exactly one today. Each is an existing interface in the instance's
   // project and zone that nothing else holds, created with the network
   // service: its subnet and security groups are the instance's.
   // Terminating the instance releases it, and it stays. An instance
@@ -249,9 +248,14 @@ message Instance {
   // When the instance was launched.
   google.protobuf.Timestamp create_time = 13 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that launched the instance, such as `user:<id>` or
-  // `service_account:<id>`.
-  string creator = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that launched the instance, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 14 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
@@ -261,8 +265,8 @@ message Instance {
   // `network_interfaces`; an interface not attached yet has none.
   repeated InterfaceAddresses interface_addresses = 16 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The service account the instance runs as,
-  // `organizations/{organization}/serviceAccounts/{service_account}`: a
+  // The full name of the service account the instance runs as,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`: a
   // `WORKLOAD` service account of the instance's organization that isn't
   // deleted. Launching with one, or updating the instance to one, needs
   // `iam.service_account.act_as` on the organization as well; an update
@@ -284,15 +288,16 @@ message BootVolume {
     (google.api.field_behavior) = OPTIONAL
   ];
 
-  // The storage class, `storageClasses/{storage_class}` of the persistent
-  // volume service; the default class when left empty.
+  // The storage class by its full name,
+  // `//pvs.origincloudapis.eu/storageClasses/{storage_class}`; the default
+  // class when left empty.
   string storage_class = 2 [
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.field_behavior) = OPTIONAL,
     (google.api.resource_reference).type = "pvs.origincloudapis.eu/StorageClass"
   ];
 
-  // The volume, in the instance's project and zone.
+  // The volume's full name, in the instance's project and zone.
   string volume = 3 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "pvs.origincloudapis.eu/Volume"
@@ -301,7 +306,7 @@ message BootVolume {
 
 // The private addresses of one of an instance's network interfaces.
 message InterfaceAddresses {
-  // The network interface.
+  // The network interface's full name.
   string network_interface = 1 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "network.origincloudapis.eu/NetworkInterface"

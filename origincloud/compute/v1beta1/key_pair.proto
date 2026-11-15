@@ -71,10 +71,6 @@ message KeyPair {
   // The key pair's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The key pair's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // The OpenSSH public key line, such as `ssh-ed25519 AAAA... comment`.
   // Left empty, the platform generates the key pair.
   string public_key = 3 [
@@ -87,9 +83,14 @@ message KeyPair {
   // Empty in every other response.
   string private_key = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the key pair, such as `user:<id>` or
-  // `service_account:<id>`.
-  string creator = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the key pair, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 5 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows, and the comment of a generated key.
