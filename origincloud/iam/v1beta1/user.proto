@@ -7,9 +7,11 @@ import "google/api/client.proto";
 import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
 
-// The signed-in user. Each user can read only their own profile, by the
-// name `users/me` or by their own id; the role bindings they hold are
-// listed by ListRoleBindings with the parent `organizations/-`.
+// Users. Each user can read only their own profile, by the name `users/me`
+// or by their own id; the role bindings they hold are listed by
+// ListRoleBindings with the parent `organizations/-`. Anyone who may grant
+// roles in an organization can look a user up by email address, to name
+// them in a role binding.
 //
 // (-- api-linter: core::0121::resource-must-support-list=disabled
 //     aip.dev/not-precedent: a caller reads only their own profile. --)
@@ -22,6 +24,26 @@ service UserService {
   rpc GetUser(GetUserRequest) returns (User) {
     option (google.api.http) = {get: "/v1beta1/{name=users/*}"};
     option (google.api.method_signature) = "name";
+  }
+
+  // Looks up the user whose account has verified an email address, and
+  // answers them with their `name`: their full name is
+  // `//iam.origincloudapis.eu/` followed by it, which is how a role
+  // binding names them as a member. Needs `iam.role.assign` on
+  // `organization`, the permission a binding of the user needs anyway.
+  // Refused with `NOT_FOUND` when no enabled account has verified the
+  // address, and with `CONFLICT` when more than one has. The answer leaves
+  // `given_name` and `family_name` empty: only the user reads those.
+  //
+  // (-- api-linter: core::0131::synonyms=disabled
+  //     aip.dev/not-precedent: a lookup by an attribute, not a Get by name. --)
+  // (-- api-linter: core::0136::http-uri-suffix=disabled
+  //     aip.dev/not-precedent: the collection names the noun, users:lookup. --)
+  // (-- api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: the user looked up is the answer. --)
+  rpc LookupUser(LookupUserRequest) returns (User) {
+    option (google.api.http) = {get: "/v1beta1/users:lookup"};
+    option (google.api.method_signature) = "email,organization";
   }
 }
 
@@ -61,5 +83,19 @@ message GetUserRequest {
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference).type = "iam.origincloudapis.eu/User"
+  ];
+}
+
+// The request for LookupUser.
+message LookupUserRequest {
+  // The email address the user's account has verified, matched exactly,
+  // case aside.
+  string email = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The organization the caller looks the user up for, where it needs
+  // `iam.role.assign`: `organizations/{organization}`, or its full name.
+  string organization = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Organization"
   ];
 }
