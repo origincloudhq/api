@@ -123,13 +123,16 @@ message ListAuditLogEntriesRequest {
     (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
   ];
 
-  // Only the entries of changes made by this member's account,
-  // `user:{email}`, `serviceAccount:{service_account}` or
-  // `serviceAgent:{service_agent}`. Every actor's when empty.
+  // Only the entries of changes made by this member, named by its full
+  // name as a role binding's member is, or as an entry's `actor` shows it.
+  // Every actor's when empty.
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a typed filter, in place of a filter string. --)
-  string actor = 3 [(google.api.field_behavior) = OPTIONAL];
+  string actor = 3 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Only the entries of this action, such as `iam.role.assign`. Every
   // action's when empty.
