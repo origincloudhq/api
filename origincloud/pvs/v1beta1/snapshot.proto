@@ -142,11 +142,7 @@ message Snapshot {
   // The snapshot's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The snapshot's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
-  // The volume copied, in the same project and zone.
+  // The full name of the volume copied, in the same project and zone.
   string source_volume = 3 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,
@@ -170,9 +166,15 @@ message Snapshot {
   // `PROTECTION_FAILED`.
   string protection_reason = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that took the snapshot, such as `user:<id>` or
-  // `service_account:<id>`.
-  string creator = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that took the snapshot, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform took
+  // it.
+  string creator = 10 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.

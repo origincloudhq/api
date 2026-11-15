@@ -132,25 +132,22 @@ message Volume {
   // The volume's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The volume's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // The size in GiB, at least 1. Growing it resizes the volume; it never
   // shrinks.
   int32 size_gib = 3 [(google.api.field_behavior) = REQUIRED];
 
-  // The storage class, `storageClasses/{storage_class}`. The default class
-  // when left empty.
+  // The storage class by its full name,
+  // `//pvs.origincloudapis.eu/storageClasses/{storage_class}`. The default
+  // class when left empty.
   string storage_class = 4 [
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.field_behavior) = OPTIONAL,
     (google.api.resource_reference).type = "pvs.origincloudapis.eu/StorageClass"
   ];
 
-  // The snapshot the volume was created from, in the same project and
-  // zone; empty for an empty volume. The volume is at least the snapshot's
-  // size.
+  // The full name of the snapshot the volume was created from, in the same
+  // project and zone; empty for an empty volume. The volume is at least the
+  // snapshot's size.
   string source_snapshot = 5 [
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.field_behavior) = OPTIONAL,
@@ -189,9 +186,15 @@ message Volume {
   // combined: a ceiling, not a guaranteed rate. 0 when it isn't limited.
   int32 throughput_mibps = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the volume, such as `user:<id>` or
-  // `service_account:<id>`.
-  string creator = 15 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the volume, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform
+  // created it.
+  string creator = 15 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
