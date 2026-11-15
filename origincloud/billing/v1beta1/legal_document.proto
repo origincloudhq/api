@@ -83,15 +83,16 @@ message LegalDocument {
   // published only.
   bool acceptance_required = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The version in force today, by its resource name. Empty while the first
-  // version has not taken effect yet.
+  // The full name of the version in force today,
+  // `//billing.origincloudapis.eu/legalDocuments/{legal_document}/versions/{version}`.
+  // Empty while the first version has not taken effect yet.
   string current_version = 4 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
   ];
 
-  // The latest version published, by its resource name: `current_version`,
-  // or a version announced to take effect later.
+  // The full name of the latest version published: `current_version`, or a
+  // version announced to take effect later.
   string latest_version = 5 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
@@ -169,7 +170,8 @@ message LegalDocumentVersion {
 
 // A version to accept, with the text it was shown as.
 message LegalDocumentVersionToAccept {
-  // The version, `legalDocuments/{legal_document}/versions/{version}`.
+  // The version's full name,
+  // `//billing.origincloudapis.eu/legalDocuments/{legal_document}/versions/{version}`.
   string legal_document_version = 1 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"

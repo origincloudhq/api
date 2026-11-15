@@ -130,7 +130,8 @@ message OrganizationCostReport {
 
 // One project's cost in an organization's report, over every service.
 message ProjectCost {
-  // The project, `projects/{project}`.
+  // The project's full name,
+  // `//resourcemanager.origincloudapis.eu/projects/{project}`.
   string project = 1 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
@@ -168,8 +169,8 @@ message UsageRecord {
   // When the interval ends.
   google.protobuf.Timestamp end_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The billing account the usage was charged to, the one the project was
-  // linked to when it was recorded; empty if it had none.
+  // The full name of the billing account the usage was charged to, the one
+  // the project was linked to when it was recorded; empty if it had none.
   string billing_account = 8 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"

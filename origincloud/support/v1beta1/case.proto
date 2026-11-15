@@ -93,11 +93,9 @@ message Case {
   // The case's resource name, `organizations/{organization}/cases/{case}`.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The case's URN, the identifier access policies and the audit log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
-  // The project the case is about, `projects/{project}`, one of the
-  // organization's. Empty for a case about the organization as a whole.
+  // The full name of the project the case is about, one of the
+  // organization's: `//resourcemanager.origincloudapis.eu/projects/{project}`.
+  // Empty for a case about the organization as a whole.
   string project = 3 [
     (google.api.field_behavior) = OPTIONAL,
     (google.api.field_behavior) = IMMUTABLE,
@@ -128,9 +126,14 @@ message Case {
   // `ReopenCase`.
   State state = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that opened the case, such as `user:<id>` or
-  // `service_account:<id>`.
-  string creator = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that opened the case, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 8 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // When the case was opened.
   google.protobuf.Timestamp create_time = 9 [(google.api.field_behavior) = OUTPUT_ONLY];

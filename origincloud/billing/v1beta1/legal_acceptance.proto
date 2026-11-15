@@ -92,8 +92,8 @@ message LegalAcceptance {
   // The acceptance's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The version accepted,
-  // `legalDocuments/{legal_document}/versions/{version}`.
+  // The full name of the version accepted,
+  // `//billing.origincloudapis.eu/legalDocuments/{legal_document}/versions/{version}`.
   string legal_document_version = 2 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"
@@ -102,9 +102,14 @@ message LegalAcceptance {
   // The SHA-256 of the text accepted: the version's `sha256`.
   string sha256 = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // Who accepted: `user:{id}`, or `service_account:{id}` for a service
-  // account.
-  string accepter = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // Who accepted, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string accepter = 4 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // When the version was accepted.
   google.protobuf.Timestamp accept_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
@@ -130,7 +135,8 @@ message LegalAcceptance {
 
 // A legal document version a billing account has yet to accept.
 message LegalRequirement {
-  // The version, `legalDocuments/{legal_document}/versions/{version}`.
+  // The version's full name,
+  // `//billing.origincloudapis.eu/legalDocuments/{legal_document}/versions/{version}`.
   string legal_document_version = 1 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "billing.origincloudapis.eu/LegalDocumentVersion"

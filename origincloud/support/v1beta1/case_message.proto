@@ -60,9 +60,14 @@ message CaseMessage {
     (google.api.field_behavior) = IMMUTABLE
   ];
 
-  // The principal that wrote the message, such as `user:<id>` or
-  // `service_account:<id>`.
-  string author = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that wrote the message, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string author = 3 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // When the message was added.
   google.protobuf.Timestamp create_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];

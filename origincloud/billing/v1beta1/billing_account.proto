@@ -174,10 +174,6 @@ message BillingAccount {
   // The billing account's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The billing account's URN, the identifier access policies and the audit
-  // log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // The name the console and spend-limit alerts show. Not empty. An
   // organization's default account is called `default` until it is
   // renamed.
@@ -211,9 +207,14 @@ message BillingAccount {
   // When the billing account was created.
   google.protobuf.Timestamp create_time = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the billing account, such as `user:<id>` or
-  // `service_account:<id>`.
-  string creator = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the billing account, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 11 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 }
 
 // A postal address invoices are issued to. Every field is required.
@@ -278,8 +279,9 @@ message ProjectBillingInfo {
   // The billing info's resource name, `projects/{project}/billingInfo`.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The billing account that pays for the project's usage, one of its
-  // organization's.
+  // The full name of the billing account that pays for the project's usage,
+  // one of its organization's:
+  // `//billing.origincloudapis.eu/organizations/{organization}/billingAccounts/{billing_account}`.
   string billing_account = 3 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference).type = "billing.origincloudapis.eu/BillingAccount"
