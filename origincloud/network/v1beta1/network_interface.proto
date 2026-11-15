@@ -99,11 +99,9 @@ message NetworkInterface {
   // The interface's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The interface's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The subnet the interface has its addresses in, in the same project
+  // The full name of the subnet the interface has its addresses in, in the
+  // same project
   // and zone.
   string subnet = 3 [
     (google.api.field_behavior) = REQUIRED,
@@ -111,7 +109,8 @@ message NetworkInterface {
     (google.api.resource_reference).type = "network.origincloudapis.eu/Subnet"
   ];
 
-  // The security groups that filter the interface's traffic, as its
+  // The full names of the security groups that filter the interface's
+  // traffic, as its
   // security group associations (each a `SecurityGroupAssociation`) set
   // them. The interface admits the traffic any of them allows. With none,
   // it admits and sends nothing except replies to its own traffic and
@@ -143,7 +142,8 @@ message NetworkInterface {
   // Whether the interface is in use.
   State state = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The instance the interface is attached to; empty while it is
+  // The full name of the instance the interface is attached to, on the
+  // compute service; empty while it is
   // `AVAILABLE`. An instance attaches interfaces when it is launched.
   string instance = 9 [
     (google.api.field_behavior) = OUTPUT_ONLY,
@@ -153,9 +153,14 @@ message NetworkInterface {
   // When the network interface was created.
   google.protobuf.Timestamp create_time = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the network interface, such as `user:<id>`
-  // or `service_account:<id>`; empty for one the platform created.
-  string creator = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the network interface, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 11 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
@@ -187,7 +192,7 @@ message ListNetworkInterfacesRequest {
   // A previous response's `next_page_token`, for the page after it.
   string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
 
-  // Only the interfaces in this subnet, when set.
+  // Only the interfaces in this subnet, by its full name, when set.
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)

@@ -76,7 +76,7 @@ message RouteTableAssociation {
   // table's id.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The route table the subnet uses, in the subnet's VPC.
+  // The full name of the route table the subnet uses, in the subnet's VPC.
   string route_table = 2 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,

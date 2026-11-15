@@ -98,8 +98,6 @@ message Vpc {
   // The VPC's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The VPC's URN, the identifier access policies and the audit log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // The private IPv4 range (RFC 1918), from `/16` to `/28`. A free `/16`
   // of the `172.16` private block when left empty. Subnets are carved from
@@ -119,7 +117,8 @@ message Vpc {
   // How many more subnets the VPC's address space holds.
   int32 available_subnet_count = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The DNS policy the VPC's resolver relays through, as the VPC's DNS
+  // The full name of the DNS policy the VPC's resolver relays through, as
+  // the VPC's DNS
   // policy association (a `DnsPolicyAssociation`) sets it. Empty while it
   // has none: the VPC then relays through the project's default DNS policy
   // in its region.
@@ -128,7 +127,7 @@ message Vpc {
     (google.api.resource_reference).type = "network.origincloudapis.eu/DnsPolicy"
   ];
 
-  // The VPC's internet gateway; empty while it has none.
+  // The full name of the VPC's internet gateway; empty while it has none.
   string internet_gateway = 8 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "network.origincloudapis.eu/InternetGateway"
@@ -143,9 +142,14 @@ message Vpc {
   // When the VPC was created.
   google.protobuf.Timestamp create_time = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the VPC, such as `user:<id>` or
-  // `service_account:<id>`; empty for one the platform created.
-  string creator = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the VPC, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 11 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.

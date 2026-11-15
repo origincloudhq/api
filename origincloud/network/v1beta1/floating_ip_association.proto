@@ -75,7 +75,8 @@ message FloatingIpAssociation {
   // interface's id.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The network interface the address reaches, in the floating IP's project
+  // The full name of the network interface the address reaches, in the
+  // floating IP's project
   // and zone.
   string network_interface = 2 [
     (google.api.field_behavior) = REQUIRED,

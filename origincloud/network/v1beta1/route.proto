@@ -80,14 +80,16 @@ message Route {
     (google.api.field_behavior) = IMMUTABLE
   ];
 
-  // The internet gateway of the table's VPC to send the traffic to.
+  // The full name of the internet gateway of the table's VPC to send the
+  // traffic to.
   string internet_gateway = 3 [
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.field_behavior) = OPTIONAL,
     (google.api.resource_reference).type = "network.origincloudapis.eu/InternetGateway"
   ];
 
-  // The NAT gateway in the table's VPC to send the traffic to, for the
+  // The full name of the NAT gateway in the table's VPC to send the traffic
+  // to, for the
   // IPv4 default route only: a NAT gateway translates IPv4 only. Named in
   // the gateway's own zone; a name with another zone is refused with
   // `INVALID_ARGUMENT`.

@@ -84,11 +84,9 @@ message RouteTable {
   // The route table's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The route table's URN, the identifier access policies and the audit
-  // log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The VPC the table routes for, in the same project and region.
+  // The full name of the VPC the table routes for, in the same project and
+  // region.
   string vpc = 3 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,
@@ -108,9 +106,14 @@ message RouteTable {
   // When the route table was created.
   google.protobuf.Timestamp create_time = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the route table, such as `user:<id>` or
-  // `service_account:<id>`; empty for one the platform created.
-  string creator = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the route table, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 7 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
@@ -142,7 +145,7 @@ message ListRouteTablesRequest {
   // A previous response's `next_page_token`, for the page after it.
   string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
 
-  // Only the route tables of this VPC, when set.
+  // Only the route tables of this VPC, by its full name, when set.
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)

@@ -74,7 +74,7 @@ message SecurityGroupAssociation {
   // group's id.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The security group, in the interface's VPC.
+  // The security group's full name, in the interface's VPC.
   string security_group = 2 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,

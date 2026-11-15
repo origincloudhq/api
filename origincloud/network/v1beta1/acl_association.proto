@@ -71,7 +71,8 @@ message AclAssociation {
   // The association's resource name. Its last segment is the ACL's id.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The ACL that filters the subnet's traffic, in the subnet's VPC.
+  // The full name of the ACL that filters the subnet's traffic, in the
+  // subnet's VPC.
   string acl = 2 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,

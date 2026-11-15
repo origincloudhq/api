@@ -136,7 +136,8 @@ message SecurityGroupRule {
     (google.api.field_behavior) = OPTIONAL
   ];
 
-  // The peer as another security group of the same VPC: its members'
+  // The peer as another security group of the same VPC, by its full name:
+  // its members'
   // addresses. The rule's own group is refused here with
   // `INVALID_ARGUMENT`: it is `same_group`.
   string peer_security_group = 7 [

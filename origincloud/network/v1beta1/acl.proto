@@ -88,10 +88,9 @@ message Acl {
   // The ACL's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The ACL's URN, the identifier access policies and the audit log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The VPC the ACL belongs to, in the same project and region.
+  // The full name of the VPC the ACL belongs to, in the same project and
+  // region.
   string vpc = 3 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,
@@ -106,9 +105,14 @@ message Acl {
   // When the ACL was created.
   google.protobuf.Timestamp create_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the ACL, such as `user:<id>` or
-  // `service_account:<id>`; empty for one the platform created.
-  string creator = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the ACL, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 6 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
@@ -139,7 +143,7 @@ message ListAclsRequest {
   // A previous response's `next_page_token`, for the page after it.
   string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
 
-  // Only the ACLs of this VPC, when set.
+  // Only the ACLs of this VPC, by its full name, when set.
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)

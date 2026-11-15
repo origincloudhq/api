@@ -87,18 +87,17 @@ message NatGateway {
   // The gateway's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The gateway's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The public subnet the gateway lives in, in the same project and zone.
+  // The full name of the public subnet the gateway lives in, in the same
+  // project and zone.
   string subnet = 3 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.resource_reference).type = "network.origincloudapis.eu/Subnet"
   ];
 
-  // The floating IP instances behind the gateway appear as, in the same
+  // The full name of the floating IP instances behind the gateway appear
+  // as, in the same
   // project and zone. It stays allocated when the gateway is deleted.
   string floating_ip = 4 [
     (google.api.field_behavior) = REQUIRED,
@@ -106,7 +105,7 @@ message NatGateway {
     (google.api.resource_reference).type = "network.origincloudapis.eu/FloatingIp"
   ];
 
-  // The subnet's VPC.
+  // The full name of the subnet's VPC.
   string vpc = 5 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
@@ -115,9 +114,14 @@ message NatGateway {
   // When the NAT gateway was created.
   google.protobuf.Timestamp create_time = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the NAT gateway, such as `user:<id>` or
-  // `service_account:<id>`; empty for one the platform created.
-  string creator = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the NAT gateway, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 7 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.

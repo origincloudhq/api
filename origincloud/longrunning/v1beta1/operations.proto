@@ -5,6 +5,7 @@ package origincloud.longrunning.v1beta1;
 import "google/api/annotations.proto";
 import "google/api/client.proto";
 import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
 import "google/longrunning/operations.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
@@ -66,8 +67,11 @@ message WaitOperationRequest {
 
 // What an operation is about.
 message OperationMetadata {
-  // The resource the operation acts on.
-  string target = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The full name of the resource the operation acts on.
+  string target = 1 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // What it does, as the method that started it names it: for example
   // `create`, `update` or `delete`.

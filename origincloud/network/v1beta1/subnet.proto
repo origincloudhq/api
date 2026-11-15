@@ -89,11 +89,9 @@ message Subnet {
   // The subnet's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The subnet's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The VPC the subnet is part of, in the same project and in the zone's
+  // The full name of the VPC the subnet is part of, in the same project and
+  // in the zone's
   // region. For now a VPC lives in one zone of its region: a subnet in
   // another zone is refused with `FAILED_PRECONDITION`.
   string vpc = 3 [
@@ -102,7 +100,8 @@ message Subnet {
     (google.api.resource_reference).type = "network.origincloudapis.eu/Vpc"
   ];
 
-  // The route table that decides where the subnet's traffic goes, as the
+  // The full name of the route table that decides where the subnet's
+  // traffic goes, as the
   // subnet's route table association (a `RouteTableAssociation`) sets it.
   // A subnet reaches, and is reached from, the internet for an address
   // family only if its own route table has that family's default route (a
@@ -114,7 +113,8 @@ message Subnet {
     (google.api.resource_reference).type = "network.origincloudapis.eu/RouteTable"
   ];
 
-  // The ACL that filters traffic in and out of the subnet, as the subnet's
+  // The full name of the ACL that filters traffic in and out of the subnet,
+  // as the subnet's
   // ACL association (an `AclAssociation`) sets it. Empty while it has
   // none: nothing is filtered at the subnet's edge, and its interfaces'
   // security groups still apply.
@@ -163,9 +163,14 @@ message Subnet {
   // When the subnet was created.
   google.protobuf.Timestamp create_time = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the subnet, such as `user:<id>` or
-  // `service_account:<id>`; empty for one the platform created.
-  string creator = 15 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the subnet, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 15 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
@@ -196,7 +201,7 @@ message ListSubnetsRequest {
   // A previous response's `next_page_token`, for the page after it.
   string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
 
-  // Only the subnets of this VPC, when set.
+  // Only the subnets of this VPC, by its full name, when set.
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)

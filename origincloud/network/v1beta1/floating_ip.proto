@@ -88,9 +88,6 @@ message FloatingIp {
   // The floating IP's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The floating IP's URN, the identifier access policies and the audit
-  // log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // The public address.
   string address = 3 [
@@ -98,7 +95,8 @@ message FloatingIp {
     (google.api.field_behavior) = OUTPUT_ONLY
   ];
 
-  // The network interface the address reaches, as the floating IP's
+  // The full name of the network interface the address reaches, as the
+  // floating IP's
   // association (a `FloatingIpAssociation`) sets it; empty while it has
   // none.
   string network_interface = 4 [
@@ -123,9 +121,14 @@ message FloatingIp {
   // When the floating IP was created.
   google.protobuf.Timestamp create_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the floating IP, such as `user:<id>` or
-  // `service_account:<id>`; empty for one the platform created.
-  string creator = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the floating IP, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 8 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
