@@ -118,10 +118,6 @@ message RecordSet {
   // The record set's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The record set's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // The name the records answer for: the zone's `dns_name` or a name below
   // it, written in full, such as `www.example.com`, without the final dot;
   // answered in lowercase. Labels may hold `_` (`_dmarc.example.com`), and
@@ -188,8 +184,8 @@ message BasicRecordData {
 // An alias: the record set answers with a platform resource's address, and
 // follows it as it changes.
 message AliasRecordData {
-  // The Floating IP whose address the record set answers with, in the
-  // zone's project. A Floating IP's address is an IPv4 address, so the
+  // The full name of the Floating IP whose address the record set answers
+  // with, in the zone's project. A Floating IP's address is an IPv4 address, so the
   // record set is of type `A`; an `AAAA` alias is refused.
   string floating_ip = 1 [
     (google.api.field_behavior) = REQUIRED,
@@ -311,7 +307,7 @@ message BatchChangeRecordSetsRequest {
     (google.api.resource_reference).child_type = "dns.origincloudapis.eu/RecordSet"
   ];
 
-  // The record sets to delete, by name.
+  // The record sets to delete, by their full names.
   repeated string deletions = 2 [
     (google.api.field_behavior) = OPTIONAL,
     (google.api.resource_reference).type = "dns.origincloudapis.eu/RecordSet"

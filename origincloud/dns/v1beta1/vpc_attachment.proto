@@ -70,11 +70,7 @@ message VpcAttachment {
   // The attachment's resource name. Its last segment is the VPC's id.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The attachment's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
-  // The VPC the zone answers in, in the zone's project.
+  // The full name of the VPC the zone answers in, in the zone's project.
   string vpc = 3 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,
@@ -111,7 +107,8 @@ message ListVpcAttachmentsRequest {
   // A previous response's `next_page_token`, for the page after it.
   string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
 
-  // Only the attachments to this VPC; every VPC's when left empty.
+  // Only the attachments to this VPC, by its full name; every VPC's when
+  // left empty.
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a list is narrowed by typed fields, not a filter string. --)

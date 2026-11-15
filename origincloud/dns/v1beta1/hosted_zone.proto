@@ -153,9 +153,6 @@ message HostedZone {
   // The zone's resource name.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The zone's URN, the identifier access policies and the audit log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // The domain, such as `example.com`, without the final dot; answered in
   // lowercase. A public zone's has at least two labels and at most 235
   // characters, so its challenge name fits, and isn't a special-use domain
@@ -196,9 +193,14 @@ message HostedZone {
   // When the zone was created.
   google.protobuf.Timestamp create_time = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The principal that created the zone, such as `user:<id>` or
-  // `service_account:<id>`.
-  string creator = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The principal that created the zone, by its full name on iam:
+  // `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 9 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
