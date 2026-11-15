@@ -100,7 +100,10 @@ message ListPermissionsResponse {
 message TestIamPermissionsRequest {
   // The organization, `organizations/{organization}`, or the project,
   // `projects/{project}`, to test the permissions on.
-  string resource = 1 [(google.api.field_behavior) = REQUIRED];
+  string resource = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "*"
+  ];
 
   // The permissions to test, by their keys, such as `pvs.volume.create`;
   // at most 100.

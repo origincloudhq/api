@@ -128,7 +128,8 @@ message RoleBinding {
   // which covers every project in it.
   string project = 5 [
     (google.api.field_behavior) = OPTIONAL,
-    (google.api.field_behavior) = IMMUTABLE
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
   ];
 
   // Who created the binding, written as a member is, or `platform` for a
@@ -172,7 +173,10 @@ message ListRoleBindingsRequest {
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a typed filter, in place of a filter string. --)
-  string project = 3 [(google.api.field_behavior) = OPTIONAL];
+  string project = 3 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
 
   // The most bindings to return; the server clamps it, and 0 means its
   // default.

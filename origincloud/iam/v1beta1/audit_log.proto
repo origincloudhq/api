@@ -63,7 +63,10 @@ message AuditLogEntry {
 
   // The project the change was limited to, `projects/{project}`; empty for
   // a change to the whole organization.
-  string project = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+  string project = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
 
   // Who made the change, as it was when the change was made:
   // `user:{email}` with the verified address the account had then,
@@ -115,7 +118,10 @@ message ListAuditLogEntriesRequest {
   //
   // (-- api-linter: core::0132::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a typed filter, in place of a filter string. --)
-  string project = 2 [(google.api.field_behavior) = OPTIONAL];
+  string project = 2 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Project"
+  ];
 
   // Only the entries of changes made by this member's account,
   // `user:{email}`, `serviceAccount:{service_account}` or
