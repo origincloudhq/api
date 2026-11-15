@@ -39,17 +39,14 @@ message Role {
   // `roles/billing.administrator`. A role binding names its role by it.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The role's URN, the identifier access policies and the audit log use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // The name the console shows, such as `Owner`.
   string display_name = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // What holding the role allows, in a sentence.
   string description = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The permissions the role grants, `permissions/{permission}`, in
-  // catalog order.
+  // The full names of the permissions the role grants,
+  // `//iam.origincloudapis.eu/permissions/{permission}`, in catalog order.
   repeated string included_permissions = 5 [
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "iam.origincloudapis.eu/Permission"

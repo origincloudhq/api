@@ -55,10 +55,6 @@ message Permission {
   // such as `permissions/pvs.volume.create`.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The permission's URN, the identifier access policies and the audit log
-  // use.
-  string urn = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
-
   // The service whose API checks it, such as `pvs`.
   string service = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
 
