@@ -1,14 +1,14 @@
 syntax = "proto3";
 
 // VPCs, subnets, routing, gateways, floating IPs, network interfaces, security
-// groups, ACLs and DNS policies.
+// groups, ACLs and resolver policies.
 //
 // A VPC is a private network in one region of a project; its subnets, NAT
 // gateways, floating IPs and network interfaces each live in one zone.
 // Route tables say where a subnet's traffic leaves the VPC: through an
 // internet gateway or a NAT gateway. Security groups allow traffic to and
 // from the network interfaces associated with them, ACLs filter a subnet's
-// traffic with stateless rules, and a DNS policy says how a VPC's resolver
+// traffic with stateless rules, and a resolver policy says how a VPC's resolver
 // answers names outside the platform's own.
 package origincloud.network.v1beta1;
 
@@ -42,9 +42,9 @@ service VpcService {
   }
 
   // Creates an empty VPC: no subnets, security groups, ACLs, route tables
-  // or internet gateway. It relays DNS through the project's default DNS
-  // policy in its region until a DNS policy association names another. The
-  // operation is done once the VPC is recorded.
+  // or internet gateway. It relays DNS through the project's default
+  // resolver policy in its region until a resolver policy association names
+  // another. The operation is done once the VPC is recorded.
   rpc CreateVpc(CreateVpcRequest) returns (google.longrunning.Operation) {
     option (google.api.http) = {
       post: "/v1beta1/{parent=projects/*/regions/*}/vpcs"
@@ -71,7 +71,7 @@ service VpcService {
     };
   }
 
-  // Deletes a VPC with its DNS policy association. Refused with
+  // Deletes a VPC with its resolver policy association. Refused with
   // `FAILED_PRECONDITION` while the VPC has subnets, security groups,
   // ACLs, route tables or an internet gateway, except those the platform
   // created with it, which are deleted with it. The operation is done once
@@ -117,14 +117,13 @@ message Vpc {
   // How many more subnets the VPC's address space holds.
   int32 available_subnet_count = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
 
-  // The full name of the DNS policy the VPC's resolver relays through, as
-  // the VPC's DNS
-  // policy association (a `DnsPolicyAssociation`) sets it. Empty while it
-  // has none: the VPC then relays through the project's default DNS policy
-  // in its region.
-  string dns_policy = 7 [
+  // The full name of the resolver policy the VPC's resolver relays through, as
+  // the VPC's resolver policy association (a `ResolverPolicyAssociation`) sets
+  // it. Empty while it has none: the VPC then relays through the project's
+  // default resolver policy in its region.
+  string resolver_policy = 7 [
     (google.api.field_behavior) = OUTPUT_ONLY,
-    (google.api.resource_reference).type = "network.origincloudapis.eu/DnsPolicy"
+    (google.api.resource_reference).type = "network.origincloudapis.eu/ResolverPolicy"
   ];
 
   // The full name of the VPC's internet gateway; empty while it has none.

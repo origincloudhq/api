@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+package origincloud.network.v1beta1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "origincloud/longrunning/v1beta1/operations.proto";
+
+// Resolver policy associations: which resolver policy a VPC's resolver
+// relays through. A VPC has at most one; without one, it relays through the
+// project's default resolver policy in its region (see the VPC's
+// `resolver_policy`). An association's id is the id of the resolver policy it
+// names, so a client that knows the VPC and the policy names the association
+// without listing. To move a VPC to another policy, delete its association
+// and create another.
+service ResolverPolicyAssociationService {
+  option (google.api.default_host) = "network.origincloudapis.eu";
+
+  // Returns a resolver policy association.
+  rpc GetResolverPolicyAssociation(GetResolverPolicyAssociationRequest) returns (ResolverPolicyAssociation) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/regions/*/vpcs/*/resolverPolicyAssociations/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a VPC's resolver policy associations: none or one.
+  rpc ListResolverPolicyAssociations(ListResolverPolicyAssociationsRequest) returns (ListResolverPolicyAssociationsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*/regions/*/vpcs/*}/resolverPolicyAssociations"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Associates a resolver policy with a VPC. Refused with `FAILED_PRECONDITION`
+  // when the VPC has a resolver policy association. The operation is done once
+  // the change is recorded; the VPC's resolver applies it within seconds.
+  rpc CreateResolverPolicyAssociation(CreateResolverPolicyAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/regions/*/vpcs/*}/resolverPolicyAssociations"
+      body: "resolver_policy_association"
+    };
+    option (google.api.method_signature) = "parent,resolver_policy_association";
+    option (google.longrunning.operation_info) = {
+      response_type: "ResolverPolicyAssociation"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Removes a VPC's resolver policy association: the VPC relays through the
+  // project's default resolver policy in its region again. The operation is done
+  // once the change is recorded; the VPC's resolver applies it within
+  // seconds.
+  rpc DeleteResolverPolicyAssociation(DeleteResolverPolicyAssociationRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/regions/*/vpcs/*/resolverPolicyAssociations/*}"};
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+}
+
+// The resolver policy a VPC's resolver relays through.
+message ResolverPolicyAssociation {
+  option (google.api.resource) = {
+    type: "network.origincloudapis.eu/ResolverPolicyAssociation"
+    pattern: "projects/{project}/regions/{region}/vpcs/{vpc}/resolverPolicyAssociations/{resolver_policy_association}"
+    plural: "resolverPolicyAssociations"
+    singular: "resolverPolicyAssociation"
+  };
+
+  // The association's resource name. Its last segment is the resolver policy's
+  // id.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The full name of the resolver policy the VPC relays through, in the VPC's
+  // project and region.
+  string resolver_policy = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/ResolverPolicy"
+  ];
+}
+
+// The request for GetResolverPolicyAssociation.
+message GetResolverPolicyAssociationRequest {
+  // The association to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/ResolverPolicyAssociation"
+  ];
+}
+
+// The request for ListResolverPolicyAssociations.
+message ListResolverPolicyAssociationsRequest {
+  // The VPC whose association to list,
+  // `projects/{project}/regions/{region}/vpcs/{vpc}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/ResolverPolicyAssociation"
+  ];
+
+  // The most associations to return; the server clamps it, and 0 means
+  // its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListResolverPolicyAssociations.
+message ListResolverPolicyAssociationsResponse {
+  // The associations on this page.
+  repeated ResolverPolicyAssociation resolver_policy_associations = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateResolverPolicyAssociation.
+message CreateResolverPolicyAssociationRequest {
+  // The VPC to associate the resolver policy with,
+  // `projects/{project}/regions/{region}/vpcs/{vpc}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "network.origincloudapis.eu/ResolverPolicyAssociation"
+  ];
+
+  // The association to create: its resolver policy.
+  ResolverPolicyAssociation resolver_policy_association = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for DeleteResolverPolicyAssociation.
+message DeleteResolverPolicyAssociationRequest {
+  // The association to remove.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/ResolverPolicyAssociation"
+  ];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation.
+  string request_id = 2 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
