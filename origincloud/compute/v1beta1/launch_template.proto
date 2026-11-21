@@ -2,8 +2,184 @@ syntax = "proto3";
 
 package origincloud.compute.v1beta1;
 
+import "google/api/annotations.proto";
+import "google/api/client.proto";
 import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
 import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// Launch templates: recipes a project keeps under a name, to launch
+// instances from. A template holds numbered versions of its recipe, each
+// fixed once created, and one of them is its default. A template belongs to
+// its project and can be used in every zone: the zone a recipe's image,
+// subnet or interface is in is checked when an instance is launched from
+// it, not when the template is created.
+service LaunchTemplateService {
+  option (google.api.default_host) = "compute.origincloudapis.eu";
+
+  // Returns a launch template, with its default version's recipe.
+  rpc GetLaunchTemplate(GetLaunchTemplateRequest) returns (LaunchTemplate) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/launchTemplates/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Lists a project's launch templates, oldest first, each with its
+  // default version's recipe.
+  rpc ListLaunchTemplates(ListLaunchTemplatesRequest) returns (ListLaunchTemplatesResponse) {
+    option (google.api.http) = {get: "/v1beta1/{parent=projects/*}/launchTemplates"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Creates a launch template with `launch_template_data` as its version
+  // 1, which is its default. The recipe's fields are checked for what
+  // their names say: their type, and that a key pair, a subnet, a network
+  // interface or a security group is the template's project's and a
+  // service account its organization's. Whether they exist, and are in the
+  // zone an instance is launched in, is checked at that launch.
+  rpc CreateLaunchTemplate(CreateLaunchTemplateRequest) returns (LaunchTemplate) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*}/launchTemplates"
+      body: "launch_template"
+    };
+    option (google.api.method_signature) = "parent,launch_template";
+  }
+
+  // Changes a launch template's tags. A version's recipe never changes.
+  rpc UpdateLaunchTemplate(UpdateLaunchTemplateRequest) returns (LaunchTemplate) {
+    option (google.api.http) = {
+      patch: "/v1beta1/{launch_template.name=projects/*/launchTemplates/*}"
+      body: "launch_template"
+    };
+    option (google.api.method_signature) = "launch_template,update_mask";
+  }
+
+  // Deletes a launch template and every version of it. Instances launched
+  // from it keep running.
+  rpc DeleteLaunchTemplate(DeleteLaunchTemplateRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/launchTemplates/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}
+
+// A recipe kept under a name: numbered versions of it, and the one that is
+// the default.
+message LaunchTemplate {
+  option (google.api.resource) = {
+    type: "compute.origincloudapis.eu/LaunchTemplate"
+    pattern: "projects/{project}/launchTemplates/{launch_template}"
+    plural: "launchTemplates"
+    singular: "launchTemplate"
+  };
+
+  // The launch template's resource name.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The recipe of the default version. On creation, the recipe of version
+  // 1.
+  LaunchTemplateData launch_template_data = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = IMMUTABLE
+  ];
+
+  // The number of the version launches use when they name no version.
+  int32 default_version = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The number of the newest version.
+  int32 latest_version = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When the launch template was created.
+  google.protobuf.Timestamp create_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The principal that created the launch template, by its full name on
+  // iam: `//iam.origincloudapis.eu/users/{user}`,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+  // or a platform service agent's or service's name when the platform did.
+  string creator = 6 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "*"
+  ];
+
+  // Labels of your own for the launch template, at most 50. The
+  // `origin:name` tag is the name the console shows. The recipe's own
+  // `tags` are the instances'.
+  map<string, string> tags = 7 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The request for GetLaunchTemplate.
+message GetLaunchTemplateRequest {
+  // The launch template to return.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
+  ];
+}
+
+// The request for ListLaunchTemplates.
+message ListLaunchTemplatesRequest {
+  // The project whose launch templates to list, `projects/{project}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "compute.origincloudapis.eu/LaunchTemplate"
+  ];
+
+  // The most launch templates to return; the server clamps it, and 0 means
+  // its default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListLaunchTemplates.
+message ListLaunchTemplatesResponse {
+  // The launch templates on this page.
+  repeated LaunchTemplate launch_templates = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for CreateLaunchTemplate.
+message CreateLaunchTemplateRequest {
+  // The project to create the launch template in, `projects/{project}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "compute.origincloudapis.eu/LaunchTemplate"
+  ];
+
+  // The launch template to create: the recipe of its version 1, and
+  // optionally its tags.
+  LaunchTemplate launch_template = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id creates no second launch template
+  // and returns the first request's.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for UpdateLaunchTemplate.
+message UpdateLaunchTemplateRequest {
+  // The launch template, by its name, with the tags to set.
+  LaunchTemplate launch_template = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The fields to change: `tags`, the only field that changes. `*` is the
+  // same.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for DeleteLaunchTemplate.
+message DeleteLaunchTemplateRequest {
+  // The launch template to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
+  ];
+}
 
 // The recipe for an instance: what to launch, and the specs of what the
 // launch creates for it. A launch reads the recipe and sets up what it
