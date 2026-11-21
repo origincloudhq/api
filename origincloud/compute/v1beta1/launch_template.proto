@@ -20,7 +20,9 @@ import "google/protobuf/timestamp.proto";
 service LaunchTemplateService {
   option (google.api.default_host) = "compute.origincloudapis.eu";
 
-  // Returns a launch template, with its default version's recipe.
+  // Returns a launch template with one version's recipe: its default
+  // version's for a bare name or `@default`, its newest for `@latest`, or
+  // version `N` for `@N`.
   rpc GetLaunchTemplate(GetLaunchTemplateRequest) returns (LaunchTemplate) {
     option (google.api.http) = {get: "/v1beta1/{name=projects/*/launchTemplates/*}"};
     option (google.api.method_signature) = "name";
@@ -47,7 +49,8 @@ service LaunchTemplateService {
     option (google.api.method_signature) = "parent,launch_template";
   }
 
-  // Changes a launch template's tags. A version's recipe never changes.
+  // Changes a launch template's tags or its default version, or both. A
+  // version's recipe never changes.
   rpc UpdateLaunchTemplate(UpdateLaunchTemplateRequest) returns (LaunchTemplate) {
     option (google.api.http) = {
       patch: "/v1beta1/{launch_template.name=projects/*/launchTemplates/*}"
@@ -62,10 +65,48 @@ service LaunchTemplateService {
     option (google.api.http) = {delete: "/v1beta1/{name=projects/*/launchTemplates/*}"};
     option (google.api.method_signature) = "name";
   }
+
+  // Adds a version to a launch template with `launch_template_data` as its
+  // recipe, numbered one past the highest number the template has ever
+  // given, and returns the template at it. The default version stays as it
+  // is. The recipe is checked as CreateLaunchTemplate checks it. A template
+  // holds at most 100 versions.
+  //
+  // (-- api-linter: core::0133::http-uri-parent=disabled
+  //     api-linter: core::0133::http-uri-resource=disabled
+  //     api-linter: core::0133::http-body=disabled
+  //     api-linter: core::0133::method-signature=disabled
+  //     aip.dev/not-precedent: a version is a revision of the template (AIP-162), named on the template, not a child resource. --)
+  rpc CreateLaunchTemplateVersion(CreateLaunchTemplateVersionRequest) returns (LaunchTemplate) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=projects/*/launchTemplates/*}:createVersion"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name,launch_template_data";
+  }
+
+  // Lists a launch template's versions, newest first, each as the template
+  // at that version, named `{launch_template}@{version}`.
+  rpc ListLaunchTemplateVersions(ListLaunchTemplateVersionsRequest) returns (ListLaunchTemplateVersionsResponse) {
+    option (google.api.http) = {get: "/v1beta1/{name=projects/*/launchTemplates/*}:listVersions"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // Deletes one version of a launch template, named
+  // `{launch_template}@{version}`. The default version can't be deleted:
+  // set another default first. A deleted version's number is never given
+  // to another version.
+  rpc DeleteLaunchTemplateVersion(DeleteLaunchTemplateVersionRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1beta1/{name=projects/*/launchTemplates/*}:deleteVersion"};
+    option (google.api.method_signature) = "name";
+  }
 }
 
 // A recipe kept under a name: numbered versions of it, and the one that is
 // the default.
+//
+// (-- api-linter: core::0133::http-uri-resource=disabled
+//     aip.dev/not-precedent: CreateLaunchTemplateVersion adds a revision (AIP-162) to a template; its URI is the template's. --)
 message LaunchTemplate {
   option (google.api.resource) = {
     type: "compute.origincloudapis.eu/LaunchTemplate"
@@ -74,20 +115,23 @@ message LaunchTemplate {
     singular: "launchTemplate"
   };
 
-  // The launch template's resource name.
+  // The launch template's resource name. A template read at one version,
+  // by `@{version}`, `@default` or `@latest`, is named with that version's
+  // number, `projects/{project}/launchTemplates/{launch_template}@{version}`.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
-  // The recipe of the default version. On creation, the recipe of version
-  // 1.
+  // The recipe of the version this shows, `version`: the default version's
+  // unless the name named another. On creation, the recipe of version 1.
   LaunchTemplateData launch_template_data = 2 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE
   ];
 
-  // The number of the version launches use when they name no version.
-  int32 default_version = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  // The number of the version launches use when they name no version. 1 on
+  // creation; an update sets it to another version the template has.
+  int32 default_version = 3 [(google.api.field_behavior) = OPTIONAL];
 
-  // The number of the newest version.
+  // The number of the newest version the template has.
   int32 latest_version = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // When the launch template was created.
@@ -106,11 +150,19 @@ message LaunchTemplate {
   // `origin:name` tag is the name the console shows. The recipe's own
   // `tags` are the instances'.
   map<string, string> tags = 7 [(google.api.field_behavior) = OPTIONAL];
+
+  // The number of the version whose recipe this shows.
+  int32 version = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // When that version was created.
+  google.protobuf.Timestamp version_create_time = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
 // The request for GetLaunchTemplate.
 message GetLaunchTemplateRequest {
-  // The launch template to return.
+  // The launch template to return: `projects/{project}/launchTemplates/{launch_template}`
+  // for its default version, or with `@{version}`, `@default` or `@latest`
+  // after it for that version.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
@@ -164,17 +216,81 @@ message CreateLaunchTemplateRequest {
 
 // The request for UpdateLaunchTemplate.
 message UpdateLaunchTemplateRequest {
-  // The launch template, by its name, with the tags to set.
+  // The launch template, by its name, with the tags or the default version
+  // to set.
   LaunchTemplate launch_template = 1 [(google.api.field_behavior) = REQUIRED];
 
-  // The fields to change: `tags`, the only field that changes. `*` is the
-  // same.
+  // The fields to change: `tags`, `default_version`, or both. `*` is both,
+  // where a `default_version` of 0 leaves the default as it is. A
+  // `default_version` must be a version the template has.
   google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
 }
 
 // The request for DeleteLaunchTemplate.
 message DeleteLaunchTemplateRequest {
   // The launch template to delete.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
+  ];
+}
+
+// The request for CreateLaunchTemplateVersion.
+//
+// (-- api-linter: core::0133::request-parent-required=disabled
+//     api-linter: core::0133::request-required-fields=disabled
+//     api-linter: core::0133::request-unknown-fields=disabled
+//     api-linter: core::0133::request-resource-field=disabled
+//     aip.dev/not-precedent: a version is a revision of the template (AIP-162), named on the template, not a child resource. --)
+message CreateLaunchTemplateVersionRequest {
+  // The launch template to add a version to.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
+  ];
+
+  // The new version's recipe.
+  LaunchTemplateData launch_template_data = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The request for ListLaunchTemplateVersions.
+//
+// (-- api-linter: core::0132::request-parent-required=disabled
+//     api-linter: core::0132::request-required-fields=disabled
+//     api-linter: core::0132::request-unknown-fields=disabled
+//     aip.dev/not-precedent: a version is a revision of the template (AIP-162), named on the template, not a child resource. --)
+message ListLaunchTemplateVersionsRequest {
+  // The launch template whose versions to list.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
+  ];
+
+  // The most versions to return; the server clamps it, and 0 means its
+  // default.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A previous response's `next_page_token`, for the page after it.
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for ListLaunchTemplateVersions.
+//
+// (-- api-linter: core::0132::response-unknown-fields=disabled
+//     aip.dev/not-precedent: each revision is the template at that version (AIP-162). --)
+message ListLaunchTemplateVersionsResponse {
+  // The template at each version on this page, newest first, each named
+  // with its version's number.
+  repeated LaunchTemplate launch_templates = 1;
+
+  // The token for the next page; empty on the last one.
+  string next_page_token = 2;
+}
+
+// The request for DeleteLaunchTemplateVersion.
+message DeleteLaunchTemplateVersionRequest {
+  // The version to delete, `projects/{project}/launchTemplates/{launch_template}@{version}`
+  // with the version's number.
   string name = 1 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
