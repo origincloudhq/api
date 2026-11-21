@@ -62,8 +62,11 @@ service InstanceService {
   }
 
   // Launches an instance from a recipe: the instance it describes, with a
-  // network interface created from each interface spec it holds. Nothing
-  // is created when the launch is refused, as for an invalid field, a
+  // network interface created from each interface spec it holds. The
+  // recipe is sent inline as `launch_template_data`, or is a version of a
+  // launch template named by `launch_template`, with the fields set in
+  // `launch_template_data` overriding that version's for this launch only.
+  // Nothing is created when the launch is refused, as for an invalid field, a
   // quota or a subnet with no address left. The operation is done once
   // the instance is `RUNNING`, or failed once it is `FAILED`, with the
   // reason in `state_reason`; a failed instance still exists, keeps the
@@ -302,6 +305,17 @@ message Instance {
     (google.api.field_behavior) = OPTIONAL,
     (google.api.resource_reference).type = "iam.origincloudapis.eu/ServiceAccount"
   ];
+
+  // The full name of the launch template version the instance was launched
+  // from,
+  // `//compute.origincloudapis.eu/projects/{project}/launchTemplates/{launch_template}@{version}`,
+  // with the number the launch resolved `@default` or `@latest` to. Empty
+  // for an instance launched without a template. The template may since
+  // have been changed or deleted.
+  string launch_template = 18 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
+  ];
 }
 
 // An instance's boot volume.
@@ -495,14 +509,35 @@ message LaunchInstanceRequest {
     (google.api.resource_reference).child_type = "compute.origincloudapis.eu/Instance"
   ];
 
-  // The recipe of the instance to launch.
-  LaunchTemplateData launch_template_data = 2 [(google.api.field_behavior) = REQUIRED];
+  // The recipe of the instance to launch. Required unless
+  // `launch_template` is set. With `launch_template`, the fields set here
+  // override the version's for this launch only, and the version stays as
+  // it is: a field left empty keeps the version's, so an override can't
+  // clear one. `image` or `image_family` replaces both of the version's,
+  // `size_gib` and `storage_class` of `boot_volume` each replace the
+  // version's own, and `tags` and `network_interfaces` replace the
+  // version's whole.
+  LaunchTemplateData launch_template_data = 2 [(google.api.field_behavior) = OPTIONAL];
 
   // A UUID; a repeat with the same id returns the first request's
   // operation instead of launching a second instance.
   string request_id = 3 [
     (google.api.field_info).format = UUID4,
     (google.api.field_behavior) = OPTIONAL
+  ];
+
+  // The full name of a launch template of the instance's project to launch
+  // from,
+  // `//compute.origincloudapis.eu/projects/{project}/launchTemplates/{launch_template}`
+  // for its default version, or with `@{version}`, `@default` or `@latest`
+  // after it for that version, resolved when the launch is made. Launching
+  // from one needs `compute.launch_template.get` on it as well. An unknown
+  // template or version is refused with `NOT_FOUND`, and a version whose
+  // image, key pair or subnet is gone is refused naming that field of
+  // `launch_template_data`.
+  string launch_template = 4 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
   ];
 }
 
