@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package origincloud.compute.v1beta1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+// The recipe for an instance: what to launch, and the specs of what the
+// launch creates for it. A launch reads the recipe and sets up what it
+// needs: a network interface described by a spec is created for the
+// instance, and deleted when the instance is terminated.
+message LaunchTemplateData {
+  // The instance type by its full name,
+  // `//compute.origincloudapis.eu/instanceTypes/{instance_type}`, such as
+  // `//compute.origincloudapis.eu/instanceTypes/gp1.core.2`: one whose
+  // `available` is true.
+  string instance_type = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/InstanceType"
+  ];
+
+  // The full name of the image the boot volume is created from, in the
+  // launch's zone: one of the project's own,
+  // `//compute.origincloudapis.eu/projects/{project}/zones/{zone}/images/{image}`,
+  // or a public one, `//compute.origincloudapis.eu/zones/{zone}/images/{image}`. Set exactly one of
+  // `image` and `image_family`.
+  string image = 2 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/Image"
+  ];
+
+  // The full name of the image family to launch the current public image
+  // of, `//compute.origincloudapis.eu/imageFamilies/{image_family}`. Set exactly one of `image` and
+  // `image_family`.
+  string image_family = 3 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/ImageFamily"
+  ];
+
+  // The full name of the key pair whose public key is installed for
+  // `login_user`, in the launch's project.
+  string key_pair = 4 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "compute.origincloudapis.eu/KeyPair"
+  ];
+
+  // The account to log in as: a user created at first boot that holds the
+  // key pair. A POSIX user name of at most 32 lowercase letters, digits,
+  // underscores and hyphens, starting with a letter or an underscore, and
+  // not `root`. The image's `default_user` when left empty.
+  string login_user = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // The boot volume's size and storage class. The image's size on the
+  // default storage class when left out.
+  LaunchTemplateBootVolume boot_volume = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // The full name of the service account the instance runs as,
+  // `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`: a
+  // `WORKLOAD` service account of the project's organization that isn't
+  // deleted. Launching with one needs `iam.service_account.act_as` on the
+  // organization as well. Empty for an instance that runs as none.
+  string service_account = 7 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "iam.origincloudapis.eu/ServiceAccount"
+  ];
+
+  // Labels of your own for the instance, at most 50. The `origin:name` tag
+  // is the name the console shows.
+  map<string, string> tags = 8 [(google.api.field_behavior) = OPTIONAL];
+
+  // The instance's network interfaces, in device order, the boot interface
+  // first; at most one today. Left empty, the instance gets one interface
+  // created from an empty spec: in the project's default subnet, with the
+  // VPC's default security group.
+  repeated LaunchTemplateNetworkInterface network_interfaces = 9 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The boot volume a recipe asks for.
+message LaunchTemplateBootVolume {
+  // The size in GiB, at least the image's size; the image's size when left
+  // at 0. A smaller size is refused rather than raised.
+  int32 size_gib = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // The storage class by its full name,
+  // `//pvs.origincloudapis.eu/storageClasses/{storage_class}`; the default
+  // class when left empty.
+  string storage_class = 2 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "pvs.origincloudapis.eu/StorageClass"
+  ];
+}
+
+// One of a recipe's network interfaces: one to create, or one that exists.
+message LaunchTemplateNetworkInterface {
+  // Where the interface comes from: exactly one of these.
+  oneof source {
+    // An interface the launch creates for the instance. It is deleted when
+    // the instance is terminated; an instance that ends `FAILED` keeps it,
+    // so starting the instance again can use it.
+    NetworkInterfaceSpec spec = 1 [(google.api.field_behavior) = REQUIRED];
+
+    // The full name of an existing interface,
+    // `//network.origincloudapis.eu/projects/{project}/zones/{zone}/networkInterfaces/{network_interface}`,
+    // in the launch's project and zone, that nothing else holds. It brings
+    // its own subnet and security groups. Terminating the instance releases
+    // it, and it stays.
+    string network_interface = 2 [
+      (google.api.field_behavior) = REQUIRED,
+      (google.api.resource_reference).type = "network.origincloudapis.eu/NetworkInterface"
+    ];
+  }
+}
+
+// The spec of a network interface a launch creates.
+message NetworkInterfaceSpec {
+  // The full name of the subnet to create the interface in,
+  // `//network.origincloudapis.eu/projects/{project}/zones/{zone}/subnets/{subnet}`,
+  // in the launch's project and zone. Left empty, the project's default
+  // subnet, in its default VPC: the first launch that needs them creates
+  // both, the VPC with an internet gateway attached and the subnet
+  // assigning each interface a public address. In a subnet that assigns
+  // public addresses, a launch whose address can't be assigned ends
+  // `FAILED` with the reason.
+  string subnet = 1 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/Subnet"
+  ];
+
+  // The full names of the security groups to put the interface in,
+  // `//network.origincloudapis.eu/projects/{project}/regions/{region}/securityGroups/{security_group}`,
+  // in the launch's project and region, in the subnet's VPC. Left empty,
+  // the VPC's default security group when it has one, and none when it
+  // has none: an interface in no security group admits and sends nothing
+  // but address resolution and replies to its own traffic.
+  repeated string security_groups = 2 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroup"
+  ];
+}

@@ -18,11 +18,13 @@ import "google/api/resource.proto";
 import "google/longrunning/operations.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
+import "origincloud/compute/v1beta1/launch_template.proto";
 import "origincloud/longrunning/v1beta1/operations.proto";
 
 // Instances: virtual machines in one zone, booted from an image onto a
-// durable boot volume, with network interfaces created beforehand with the
-// network service.
+// durable boot volume. An instance is launched either with network
+// interfaces created beforehand with the network service, or from a recipe
+// whose interface specs the launch creates the interfaces from.
 service InstanceService {
   option (google.api.default_host) = "compute.origincloudapis.eu";
 
@@ -53,6 +55,29 @@ service InstanceService {
       body: "instance"
     };
     option (google.api.method_signature) = "parent,instance";
+    option (google.longrunning.operation_info) = {
+      response_type: "Instance"
+      metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
+    };
+  }
+
+  // Launches an instance from a recipe: the instance it describes, with a
+  // network interface created from each interface spec it holds. Nothing
+  // is created when the launch is refused, as for an invalid field, a
+  // quota or a subnet with no address left. The operation is done once
+  // the instance is `RUNNING`, or failed once it is `FAILED`, with the
+  // reason in `state_reason`; a failed instance still exists, keeps the
+  // interfaces created for it, and can be started again or deleted.
+  //
+  // (-- api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: a launch creates the instance, as
+  //     CreateInstance does, and its operation resolves to it. --)
+  rpc LaunchInstance(LaunchInstanceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta1/{parent=projects/*/zones/*}/instances:launch"
+      body: "*"
+    };
+    option (google.api.method_signature) = "parent,launch_template_data";
     option (google.longrunning.operation_info) = {
       response_type: "Instance"
       metadata_type: "origincloud.longrunning.v1beta1.OperationMetadata"
@@ -225,8 +250,9 @@ message Instance {
   // project and zone that nothing else holds, created with the network
   // service: its subnet and security groups are the instance's.
   // Terminating the instance releases it, and it stays. An instance
-  // launched before interfaces were named at launch shows the interface
-  // created for it, which is deleted with the instance.
+  // launched from a recipe with an interface spec, or before interfaces
+  // were named at launch, shows the interface created for it once it
+  // exists, which is deleted with the instance.
   repeated string network_interfaces = 9 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.field_behavior) = IMMUTABLE,
@@ -452,6 +478,25 @@ message CreateInstanceRequest {
   // pair and its network interface, and optionally its login user, boot
   // volume and tags.
   Instance instance = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // A UUID; a repeat with the same id returns the first request's
+  // operation instead of launching a second instance.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for LaunchInstance.
+message LaunchInstanceRequest {
+  // The zone to launch the instance in, `projects/{project}/zones/{zone}`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).child_type = "compute.origincloudapis.eu/Instance"
+  ];
+
+  // The recipe of the instance to launch.
+  LaunchTemplateData launch_template_data = 2 [(google.api.field_behavior) = REQUIRED];
 
   // A UUID; a repeat with the same id returns the first request's
   // operation instead of launching a second instance.
