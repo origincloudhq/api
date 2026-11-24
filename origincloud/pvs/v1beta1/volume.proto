@@ -199,6 +199,35 @@ message Volume {
   // Labels of your own, at most 50. The `origin:name` tag is the name the
   // console shows.
   map<string, string> tags = 16 [(google.api.field_behavior) = OPTIONAL];
+
+  // How the volume is encrypted at rest; unset for a volume that isn't
+  // encrypted.
+  Encryption encryption = 17 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// How a volume is encrypted at rest: with a data key of its own, which the
+// KMS key named here wraps. The data key itself is never shown.
+message Encryption {
+  // The on-disk format of the encryption.
+  enum Format {
+    // Not set.
+    FORMAT_UNSPECIFIED = 0;
+    // LUKS2: a persistent volume.
+    LUKS2 = 1;
+    // LUKS inside a qcow2 file: a host-local volume.
+    QCOW_LUKS = 2;
+  }
+
+  // The on-disk format.
+  Format format = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // The full name of the KMS key that wraps the volume's data key, the
+  // project's volumes key:
+  // `//kms.origincloudapis.eu/projects/{project}/regions/{region}/keys/{key}`.
+  string kms_key = 2 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.resource_reference).type = "kms.origincloudapis.eu/Key"
+  ];
 }
 
 // The request for GetVolume.
