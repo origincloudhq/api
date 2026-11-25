@@ -316,6 +316,18 @@ message Instance {
     (google.api.field_behavior) = OUTPUT_ONLY,
     (google.api.resource_reference).type = "compute.origincloudapis.eu/LaunchTemplate"
   ];
+
+  // Disks on the machine the instance runs on, beside its boot volume,
+  // created blank at launch; at most 16. A local disk is temporary: it
+  // comes back empty after every stop and start and after its machine
+  // restarts, and it is deleted with the instance. It can't be the boot
+  // disk, snapshotted, resized or detached, and an instance with one isn't
+  // moved to another machine while it runs. Each appears among the
+  // instance's volume attachments.
+  repeated LocalDisk local_disks = 19 [
+    (google.api.field_behavior) = IMMUTABLE,
+    (google.api.field_behavior) = OPTIONAL
+  ];
 }
 
 // An instance's boot volume.
@@ -515,8 +527,8 @@ message LaunchInstanceRequest {
   // it is: a field left empty keeps the version's, so an override can't
   // clear one. `image` or `image_family` replaces both of the version's,
   // `size_gib` and `storage_class` of `boot_volume` each replace the
-  // version's own, and `tags` and `network_interfaces` replace the
-  // version's whole.
+  // version's own, and `tags`, `network_interfaces` and `local_disks`
+  // replace the version's whole.
   LaunchTemplateData launch_template_data = 2 [(google.api.field_behavior) = OPTIONAL];
 
   // A UUID; a repeat with the same id returns the first request's
