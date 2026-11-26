@@ -11,7 +11,9 @@ import "google/api/resource.proto";
 // or by their own id; the role bindings they hold are listed by
 // ListRoleBindings with the parent `organizations/-`. Anyone who may grant
 // roles in an organization can look a user up by email address, to name
-// them in a role binding.
+// them in a role binding. A client calls ActivatePendingRoleBindings once a
+// user has signed in, so the role bindings pending for their address become
+// theirs.
 //
 // (-- api-linter: core::0121::resource-must-support-list=disabled
 //     aip.dev/not-precedent: a caller reads only their own profile. --)
@@ -43,6 +45,27 @@ service UserService {
   rpc LookupUser(LookupUserRequest) returns (User) {
     option (google.api.http) = {get: "/v1beta1/users:lookup"};
     option (google.api.method_signature) = "email,organization";
+  }
+
+  // Activates the role bindings pending for the caller's email address,
+  // once the caller's account has verified it, and returns the caller's
+  // profile, as GetUser does. Each binding becomes active under its own
+  // name with the caller as its member, while whoever created it still
+  // holds every permission of its role in the organization; otherwise it
+  // is dropped. An address not yet verified activates nothing. Calling it
+  // again activates only what has been granted to the address since. A
+  // service account caller is refused with `BAD_REQUEST`; any user but the
+  // caller is `NOT_FOUND`.
+  //
+  // (-- api-linter: core::0136::response-message-name=disabled
+  //     aip.dev/not-precedent: the caller's profile is the answer, as
+  //     GetUser's. --)
+  rpc ActivatePendingRoleBindings(ActivatePendingRoleBindingsRequest) returns (User) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=users/*}:activatePendingRoleBindings"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name";
   }
 }
 
@@ -100,5 +123,15 @@ message LookupUserRequest {
   string organization = 2 [
     (google.api.field_behavior) = REQUIRED,
     (google.api.resource_reference).type = "resourcemanager.origincloudapis.eu/Organization"
+  ];
+}
+
+// The request for ActivatePendingRoleBindings.
+message ActivatePendingRoleBindingsRequest {
+  // The user whose pending role bindings to activate: `users/me`, or the
+  // caller's own `users/{user}`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "iam.origincloudapis.eu/User"
   ];
 }
