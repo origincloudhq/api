@@ -80,8 +80,8 @@ message PublicImage {
 
 // A disk of a public image.
 message PublicImageBlockDevice {
-  // The device name the disk appears under on every instance launched from
-  // the image.
+  // The slot the disk takes on every instance launched from the image. It
+  // is a hint at most, not the name the guest gives the disk.
   string device = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
 
   // The disk's size in GiB.
