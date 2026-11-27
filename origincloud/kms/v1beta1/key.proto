@@ -127,11 +127,31 @@ service KeyService {
     option (google.api.method_signature) = "name";
   }
 
+  // Retires an encryption context on a key the platform manages, for good:
+  // from then on every zone refuses Encrypt, Decrypt and GenerateDataKey
+  // under exactly that context, and the making, renewal and use of a grant
+  // constrained to it, each with `FORBIDDEN`. A ciphertext made under it,
+  // wherever a copy of it is kept, never decrypts again. Only the platform
+  // retires a context: the storage service retires a deleted volume's
+  // `volume` context. Retiring a context already retired succeeds and
+  // changes nothing. Refused with `FORBIDDEN` for a key the platform doesn't
+  // manage and for anyone but a platform service agent, and with
+  // `BAD_REQUEST` for an empty context. Needs `kms.key.retire_context` on
+  // the project, which no customer role holds.
+  rpc RetireEncryptionContext(RetireEncryptionContextRequest) returns (Key) {
+    option (google.api.http) = {
+      post: "/v1beta1/{name=projects/*/regions/*/keys/*}:retireEncryptionContext"
+      body: "*"
+    };
+    option (google.api.method_signature) = "name,encryption_context";
+  }
+
   // Encrypts up to 64 KiB with an `ENCRYPT_DECRYPT` key's primary version,
   // bound to the encryption context. For more data, encrypt it yourself
   // with a data key from GenerateDataKey. Refused with `CONFLICT` for a key
-  // that isn't enabled, and with `BAD_REQUEST` for a signing key. Needs
-  // `kms.key.encrypt` on the project.
+  // that isn't enabled, with `BAD_REQUEST` for a signing key, and with
+  // `FORBIDDEN` under a context retired on the key. Needs `kms.key.encrypt`
+  // on the project.
   //
   // (-- api-linter: core::0136::verb-noun=disabled
   //     aip.dev/not-precedent: the name every key management API gives it. --)
@@ -145,9 +165,10 @@ service KeyService {
 
   // Decrypts a ciphertext Encrypt or GenerateDataKey made with this key,
   // given the same encryption context. Refused with `BAD_REQUEST` for a
-  // ciphertext that doesn't decrypt under this key and context, and with
-  // `CONFLICT` for a key that isn't enabled. Needs `kms.key.decrypt` on the
-  // project.
+  // ciphertext that doesn't decrypt under this key and context, with
+  // `CONFLICT` for a key that isn't enabled, and with `FORBIDDEN` under a
+  // context retired on the key, whatever the ciphertext. Needs
+  // `kms.key.decrypt` on the project.
   //
   // (-- api-linter: core::0136::verb-noun=disabled
   //     aip.dev/not-precedent: the name every key management API gives it. --)
@@ -162,7 +183,8 @@ service KeyService {
   // Returns a new random 256-bit data key, in plaintext and encrypted under
   // an `ENCRYPT_DECRYPT` key's primary version with the encryption context.
   // Encrypt your data with the plaintext, keep only the ciphertext beside
-  // it, and recover the data key with Decrypt when you need it. Needs
+  // it, and recover the data key with Decrypt when you need it. Refused
+  // with `FORBIDDEN` under a context retired on the key. Needs
   // `kms.key.generate_data_key` on the project.
   //
   // (-- api-linter: core::0136::http-uri-suffix=disabled
@@ -413,6 +435,25 @@ message DeleteKeyRequest {
   // (-- api-linter: core::0135::request-unknown-fields=disabled
   //     aip.dev/not-precedent: a key's material is destroyed only after a delay the caller chooses. --)
   google.protobuf.Duration destroy_delay = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // A UUID; a repeat with the same id within a day returns the key as the
+  // first request left it.
+  string request_id = 3 [
+    (google.api.field_info).format = UUID4,
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+// The request for RetireEncryptionContext.
+message RetireEncryptionContextRequest {
+  // The platform-managed key to retire the context on.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference).type = "kms.origincloudapis.eu/Key"
+  ];
+
+  // The encryption context to retire, exactly: at least one pair.
+  map<string, string> encryption_context = 2 [(google.api.field_behavior) = REQUIRED];
 
   // A UUID; a repeat with the same id within a day returns the key as the
   // first request left it.
