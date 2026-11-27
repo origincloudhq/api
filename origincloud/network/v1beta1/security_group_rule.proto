@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package origincloud.network.v1beta1;
 
+import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
 import "google/api/client.proto";
 import "google/api/field_behavior.proto";
@@ -132,20 +133,29 @@ message SecurityGroupRule {
   // The rule's peer: exactly one of these. None, or more than one, is
   // refused with `INVALID_ARGUMENT`.
   oneof peer {
+    option (buf.validate.oneof).required = true;
+
     // The peer as an address range: where admitted traffic comes from, or
     // where sent traffic goes to.
-    string cidr_block = 6 [(google.api.field_behavior) = IMMUTABLE];
+    string cidr_block = 6 [
+      (google.api.field_behavior) = REQUIRED,
+      (google.api.field_behavior) = IMMUTABLE
+    ];
 
     // The peer as another security group of the same VPC, by its full
     // name: its members' addresses. The rule's own group is refused here
     // with `INVALID_ARGUMENT`: it is `same_group`.
     string peer_security_group = 7 [
+      (google.api.field_behavior) = REQUIRED,
       (google.api.field_behavior) = IMMUTABLE,
       (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroup"
     ];
 
     // The peer as the rule's own group's members; only `true` is a peer.
-    bool same_group = 8 [(google.api.field_behavior) = IMMUTABLE];
+    bool same_group = 8 [
+      (google.api.field_behavior) = REQUIRED,
+      (google.api.field_behavior) = IMMUTABLE
+    ];
   }
 
   // What the rule is for.

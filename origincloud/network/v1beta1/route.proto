@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package origincloud.network.v1beta1;
 
+import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
 import "google/api/client.proto";
 import "google/api/field_behavior.proto";
@@ -83,9 +84,12 @@ message Route {
   // Where the traffic leaves: exactly one of these. None, or more than one,
   // is refused with `INVALID_ARGUMENT`.
   oneof target {
+    option (buf.validate.oneof).required = true;
+
     // The full name of the internet gateway of the table's VPC to send the
     // traffic to.
     string internet_gateway = 3 [
+      (google.api.field_behavior) = REQUIRED,
       (google.api.field_behavior) = IMMUTABLE,
       (google.api.resource_reference).type = "network.origincloudapis.eu/InternetGateway"
     ];
@@ -95,6 +99,7 @@ message Route {
     // translates IPv4 only. Named in the gateway's own zone; a name with
     // another zone is refused with `INVALID_ARGUMENT`.
     string nat_gateway = 4 [
+      (google.api.field_behavior) = REQUIRED,
       (google.api.field_behavior) = IMMUTABLE,
       (google.api.resource_reference).type = "network.origincloudapis.eu/NatGateway"
     ];

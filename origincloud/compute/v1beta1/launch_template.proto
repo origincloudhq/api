@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package origincloud.compute.v1beta1;
 
+import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
 import "google/api/client.proto";
 import "google/api/field_behavior.proto";
@@ -410,6 +411,8 @@ message LaunchTemplateBootVolume {
 message LaunchTemplateNetworkInterface {
   // Where the interface comes from: exactly one of these.
   oneof source {
+    option (buf.validate.oneof).required = true;
+
     // An interface the launch creates for the instance. It is deleted when
     // the instance is terminated; an instance that ends `FAILED` keeps it,
     // so starting the instance again can use it.

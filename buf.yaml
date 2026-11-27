@@ -6,6 +6,9 @@ modules:
   - path: .
 deps:
   - buf.build/googleapis/googleapis
+  # protovalidate, for one annotation only: a oneof that must have exactly one
+  # member set carries `(buf.validate.oneof).required = true`.
+  - buf.build/bufbuild/protovalidate
 lint:
   use:
     - STANDARD

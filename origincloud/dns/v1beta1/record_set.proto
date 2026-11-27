@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package origincloud.dns.v1beta1;
 
+import "buf/validate/validate.proto";
 import "google/api/annotations.proto";
 import "google/api/client.proto";
 import "google/api/field_behavior.proto";
@@ -142,6 +143,8 @@ message RecordSet {
 
   // What the record set answers with: exactly one of these.
   oneof data {
+    option (buf.validate.oneof).required = true;
+
     // Values of its own.
     BasicRecordData basic = 6 [(google.api.field_behavior) = REQUIRED];
 

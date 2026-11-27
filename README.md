@@ -48,11 +48,18 @@ served under `/v1beta1/`.
 ## Using the definitions
 
 The repository is a [buf](https://buf.build) module that depends on
-`buf.build/googleapis/googleapis`. Generate code from it as a git input:
+`buf.build/googleapis/googleapis` and `buf.build/bufbuild/protovalidate`.
+Generate code from it as a git input:
 
 ```sh
 buf generate https://github.com/origincloudhq/api.git --template buf.gen.yaml
 ```
+
+A oneof that must have exactly one member set carries protovalidate's
+`option (buf.validate.oneof).required = true;`, and each of its members is
+`REQUIRED`; the API refuses it empty with `INVALID_ARGUMENT`. A oneof without
+the mark may be left unset. In the OpenAPI documents, such a oneof is the
+message schema's `oneOf`, one entry per member requiring that member.
 
 ## Contributing
 
