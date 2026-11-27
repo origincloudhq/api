@@ -328,6 +328,11 @@ message Instance {
     (google.api.field_behavior) = IMMUTABLE,
     (google.api.field_behavior) = OPTIONAL
   ];
+
+  // What happens when the instance's operating system shuts it down: it
+  // stops, or it is terminated. `STOP` when left unspecified at launch.
+  // Changeable at any time before the instance is terminated.
+  ShutdownBehavior shutdown_behavior = 20 [(google.api.field_behavior) = OPTIONAL];
 }
 
 // An instance's boot volume.
@@ -558,9 +563,10 @@ message UpdateInstanceRequest {
   // The instance, by its name, with the fields to change.
   Instance instance = 1 [(google.api.field_behavior) = REQUIRED];
 
-  // The fields to change: any of `instance_type`, `tags` and
-  // `service_account`. `*` is all three, so an empty `service_account`
-  // under it removes the instance's.
+  // The fields to change: any of `instance_type`, `tags`,
+  // `service_account` and `shutdown_behavior`. `*` is all four, so an empty
+  // `service_account` under it removes the instance's, and an unspecified
+  // `shutdown_behavior` is `STOP`.
   google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = REQUIRED];
 
   // A UUID; a repeat with the same id returns the first request's

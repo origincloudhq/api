@@ -371,6 +371,10 @@ message LaunchTemplateData {
   // comes back empty after every stop and start and after its machine
   // restarts, and it is deleted with the instance.
   repeated LocalDisk local_disks = 10 [(google.api.field_behavior) = OPTIONAL];
+
+  // What happens when the instance's operating system shuts it down. `STOP`
+  // when left unspecified.
+  ShutdownBehavior shutdown_behavior = 11 [(google.api.field_behavior) = OPTIONAL];
 }
 
 // A disk on the machine an instance runs on.
@@ -448,4 +452,20 @@ message NetworkInterfaceSpec {
     (google.api.field_behavior) = OPTIONAL,
     (google.api.resource_reference).type = "network.origincloudapis.eu/SecurityGroup"
   ];
+}
+
+// What happens to an instance when its own operating system shuts it down,
+// such as with `poweroff` inside it. A stop through the API, and one the
+// platform makes, always stops the instance, and a guest that crashed is
+// `STOPPED` with a `state_reason` saying so.
+enum ShutdownBehavior {
+  // Not set: `STOP`.
+  SHUTDOWN_BEHAVIOR_UNSPECIFIED = 0;
+
+  // The instance stops, keeping its volumes and addresses.
+  STOP = 1;
+
+  // The instance is terminated, and its resources released, as
+  // `DeleteInstance` terminates it.
+  TERMINATE = 2;
 }
